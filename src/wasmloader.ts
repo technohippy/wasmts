@@ -8,6 +8,10 @@ export class Binary {
     return this.#cursor
   }
 
+  get buffer(): ArrayBuffer {
+    return this.#buffer
+  }
+
   get eof(): boolean {
     return this.#buffer.byteLength <= this.#cursor
   }
@@ -15,6 +19,10 @@ export class Binary {
   constructor({buffer}:{buffer:ArrayBuffer}) {
     this.#buffer = buffer
     this.#view = new DataView(buffer)
+  }
+
+  truncate():Binary {
+    return new Binary({buffer:this.#buffer.slice(0, this.#cursor)})
   }
 
   peep(pos:number=0): number {
