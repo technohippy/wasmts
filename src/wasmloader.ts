@@ -175,6 +175,12 @@ export class Binary {
     this.writeS32(num)
   }
 
+  writeName(name:string) {
+    const encoder = new TextEncoder()
+    this.writeU32(name.length)
+    this.writeBytes(encoder.encode(name))
+  }
+
   writeVec<T>(ts:T[], writeT:(t:T)=>void) {
     this.writeU32(ts.length)
     for (const t of ts) {
@@ -348,11 +354,23 @@ class GlobalSectionNode extends SectionNode {
 }
 
 class ExportSectionNode extends SectionNode {
+  exports: ExportNode[] = []
+
   load(binary:Binary) {
+    this.exports = binary.readVec<ExportNode>(():ExportNode => {
+      const ex = new ExportNode()
+      ex.load(binary)
+      return ex
+    })
   }
 
   store(binary:Binary) {
-    throw new Error("not yet")
+    binary.writeByte(7) // TODO: ID
+    const sectionsBinary = new Binary({buffer:new ArrayBuffer(1024)}) // TODO: 1024 may not be enough.
+    sectionsBinary.writeVec<ExportNode>(this.exports, (ex:ExportNode) => {
+      ex.store(sectionsBinary)
+    })
+    binary.append(sectionsBinary)
   }
 }
 
@@ -510,6 +528,45 @@ class LocalsNode {
   }
 }
 
+class ExportNode {
+  name?:string
+  exportDesc?:ExportDescNode
+
+  load(binary:Binary) {
+    this.name = binary.readName()
+    this.exportDesc = new ExportDescNode()
+    this.exportDesc.load(binary)
+  }
+
+  store(binary:Binary) {
+    if (this.name === undefined || this.exportDesc === undefined) {
+      throw new Error("invalid export")
+    }
+
+    binary.writeName(this.name)
+    this.exportDesc.store(binary)
+  }
+}
+
+class ExportDescNode {
+  tag?:number
+  index?:number
+
+  load(binary:Binary) {
+    this.tag = binary.readByte()
+    this.index = binary.readU32()
+  }
+
+  store(binary:Binary) {
+    if (this.tag === undefined || this.index === undefined) {
+      throw new Error("invalid exportdesc")
+    }
+
+    binary.writeByte(this.tag)
+    binary.writeU32(this.index)
+  }
+}
+
 class ExprNode {
   instrs: InstrNode[] = []
 
@@ -566,7 +623,7 @@ class InstrNode {
   }
 
   store(binary:Binary) {
-    throw new Error("subclass responsibility")
+    throw new Error(`subclass responsibility: ${this.constructor.name}`)
   }
 }
 
@@ -618,6 +675,15 @@ class LocalGetInstrNode extends InstrNode {
   load(binary:Binary) {
     this.localIdx = binary.readU32()
   }
+
+  store(binary:Binary) {
+    if (this.localIdx === undefined) {
+      throw new Error("invalid local.get")
+    }
+
+    binary.writeByte(Op.LocalGet)
+    binary.writeU32(this.localIdx)
+  }
 }
 
 class LocalSetInstrNode extends InstrNode {
@@ -648,6 +714,9 @@ class I32GeUInstrNode extends InstrNode {
 }
 
 class I32AddInstrNode extends InstrNode {
+  store(binary:Binary) {
+    binary.writeByte(Op.I32Add)
+  }
 }
 
 type TypeIdx = number

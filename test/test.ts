@@ -51,3 +51,10 @@ Deno.test("store simple.wasm", async () => {
   mod.store(outBinary)
   assertEquals(inBinary.toString(), outBinary.toString())
 })
+
+Deno.test("store add.wasm", async () => {
+  const [mod, inBinary] = await loadModule("./test/data/wasm/add.wasm")
+  const outBinary = new Binary({buffer:new ArrayBuffer(1024)})
+  mod.store(outBinary)
+  assertEquals(inBinary.toString(), outBinary.toString())
+})
