@@ -8,7 +8,13 @@ if (!filename) {
 }
 
 const code = await Deno.readFile(filename);
+const inBinary = new Binary(code)
 
 const mod = new ModuleNode()
-mod.load(new Binary(code))
-console.log(JSON.stringify(mod))
+mod.load(inBinary)
+//console.log(JSON.stringify(mod))
+
+const ab = new ArrayBuffer(1024)
+const outBinary = new Binary({buffer:ab})
+mod.store(outBinary)
+console.log(outBinary.toString())
