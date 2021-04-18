@@ -1,12 +1,5 @@
 // deno run --allow-read src/wasmloader.ts test/data/wasm/module.wasm
-const {args: [filename], readFile, exit} = Deno;
-
-if (!filename) {
-    console.error("no filename");
-    exit(1);
-}
-
-class Binary {
+export class Binary {
   #cursor = 0
   #buffer: ArrayBuffer
   #view: DataView
@@ -114,7 +107,7 @@ class Binary {
   }
 }
 
-class ModuleNode {
+export class ModuleNode {
   magic?: ArrayBuffer
   version?: ArrayBuffer
   sections: SectionNode[] = []
@@ -123,13 +116,11 @@ class ModuleNode {
     this.magic = binary.readBytes(4)
     this.version = binary.readBytes(4)
     while (true) {
+      if (binary.eof) break
+
       const section = this.loadSection(binary)
       this.sections.push(section)
-      if (binary.eof) {
-        break
-      }
     }
-    return mod
   }
 
   loadSection(binary:Binary): SectionNode {
@@ -475,12 +466,3 @@ const Op = {
   End: 0x0b,
 } as const
 type Op = typeof Op[keyof typeof Op]; 
-
-///////
-
-const code = await readFile(filename);
-
-//const mod = wasmBinary.readModule()
-const mod = new ModuleNode()
-mod.load(new Binary(code))
-console.log(JSON.stringify(mod))
