@@ -311,8 +311,12 @@ class FuncNode {
 }
 
 class LocalsNode {
+  num?: number
+  valType?: ValType
+
   load(binary:Binary) {
-    console.warn("locals node")
+    this.num = binary.readU32()
+    this.valType = binary.readByte() as ValType
   }
 }
 
@@ -321,8 +325,8 @@ class ExprNode {
 
   load(binary:Binary) {
     while (true) {
-      const opcode = binary.readByte()
-      if (opcode === OP_END_INSTR) break
+      const opcode = binary.readByte() as Op
+      if (opcode === Op.End) break
 
       const instrClass = InstrNode.classByOpcode(opcode)
       if (!instrClass) {
@@ -332,22 +336,31 @@ class ExprNode {
       const instr = new instrClass(opcode)
       instr.load(binary)
       this.instrs.push(instr)
+
+      if (binary.eof) break
     }
   }
 }
 
 class InstrNode {
-  opcode: number
+  opcode: Op
 
-  static classByOpcode(opcode:number): typeof InstrNode | undefined {
+  static classByOpcode(opcode:Op): typeof InstrNode | undefined {
     return {
-      [OP_I32_CONST]: I32ConstInstrNode,
-      [OP_I32_ADD]: I32AddInstrNode,
-      [OP_LOCAL_GET]: LocalGetInstrNode,
+      [Op.End]: NopInstrNode,
+      [Op.Block]: BlockInstrNode,
+      [Op.Loop]: LoopInstrNode,
+      [Op.Br]: BrInstrNode,
+      [Op.BrIf]: BrIfInstrNode,
+      [Op.I32Const]: I32ConstInstrNode,
+      [Op.I32GeU]: I32GeUInstrNode,
+      [Op.I32Add]: I32AddInstrNode,
+      [Op.LocalGet]: LocalGetInstrNode,
+      [Op.LocalSet]: LocalSetInstrNode,
     }[opcode]
   }
 
-  constructor(opcode:number) {
+  constructor(opcode:Op) {
     this.opcode = opcode
   }
 
@@ -356,7 +369,57 @@ class InstrNode {
   }
 }
 
+class BlockInstrNode extends InstrNode {
+  blockType?: BlockType
+  instrs?: ExprNode
+
+  load(binary:Binary) {
+    this.blockType = binary.readByte()
+    this.instrs = new ExprNode()
+    this.instrs.load(binary)
+  }
+}
+
+class LoopInstrNode extends InstrNode {
+  blockType?: BlockType
+  instrs?: ExprNode
+
+  load(binary:Binary) {
+    this.blockType = binary.readByte()
+    this.instrs = new ExprNode()
+    this.instrs.load(binary)
+  }
+}
+
+class BrInstrNode extends InstrNode {
+  labelIdx?: LabelIdx
+
+  load(binary:Binary) {
+    this.labelIdx = binary.readU32()
+  }
+}
+
+class BrIfInstrNode extends InstrNode {
+  labelIdx?: LabelIdx
+
+  load(binary:Binary) {
+    this.labelIdx = binary.readU32()
+  }
+}
+
+class NopInstrNode extends InstrNode {
+
+}
+
 class LocalGetInstrNode extends InstrNode {
+  localIdx?: number
+
+  load(binary:Binary) {
+    this.localIdx = binary.readU32()
+  }
+}
+
+class LocalSetInstrNode extends InstrNode {
   localIdx?: number
 
   load(binary:Binary) {
@@ -370,6 +433,9 @@ class I32ConstInstrNode extends InstrNode {
   load(binary:Binary) {
     this.num = binary.readI32()
   }
+}
+
+class I32GeUInstrNode extends InstrNode {
 }
 
 class I32AddInstrNode extends InstrNode {
@@ -393,11 +459,22 @@ type FuncRef = 0x70
 type ExternRef = 0x6f
 type RefType = FuncRef | ExternRef
 type ValType = NumType | RefType
+type S33 = number
+type BlockType = 0x40 | ValType | S33
 
-const OP_LOCAL_GET = 0x20
-const OP_I32_CONST = 0x41
-const OP_I32_ADD = 0x6a
-const OP_END_INSTR = 0x0b
+const Op = {
+  Block: 0x02,
+  Loop: 0x03,
+  Br: 0x0c,
+  BrIf: 0x0d,
+  LocalGet: 0x20,
+  LocalSet: 0x21,
+  I32Const: 0x41,
+  I32GeU: 0x4f,
+  I32Add: 0x6a,
+  End: 0x0b,
+} as const
+type Op = typeof Op[keyof typeof Op]; 
 
 ///////
 
