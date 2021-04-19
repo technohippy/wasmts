@@ -1,6 +1,7 @@
 // deno test --allow-read 
 import { assert, assertEquals } from "https://deno.land/std@0.93.0/testing/asserts.ts"
-import { ModuleNode, Binary } from "../src/wasmloader.ts"
+import { ModuleNode } from "../src/core/node.ts"
+import { Binary } from "../src/core/binary.ts"
 
 async function loadModule(filepath:string):Promise<[ModuleNode, Binary]> {
   const code = await Deno.readFile(filepath)

@@ -1,4 +1,5 @@
-import { ModuleNode, Binary } from "./wasmloader.ts"
+import { ModuleNode } from "./core/node.ts"
+import { Binary } from "./core/binary.ts"
 
 const {args: [filename]} = Deno;
 
