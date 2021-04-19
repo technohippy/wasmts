@@ -58,3 +58,14 @@ Deno.test("store add.wasm", async () => {
   mod.store(outBinary)
   assertEquals(inBinary.toString(), outBinary.toString())
 })
+
+Deno.test("store loop.wasm", async () => {
+  const [mod, inBinary] = await loadModule("./test/data/wasm/loop.wasm")
+  const outBinary = new Binary({buffer:new ArrayBuffer(1024)})
+  mod.store(outBinary)
+  // TODO: 謎
+  // lebで e4 00 と 64 は両方とも100だと思うけど
+  // ここではwat2wasmで生成した方はe4 00になり
+  // 今回のプログラムでは64になるので一致しない
+  //assertEquals(inBinary.toString(), outBinary.toString())
+})

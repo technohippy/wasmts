@@ -636,6 +636,16 @@ class BlockInstrNode extends InstrNode {
     this.instrs = new ExprNode()
     this.instrs.load(binary)
   }
+
+  store(binary:Binary) {
+    if (this.blockType === undefined || this.instrs === undefined) {
+      throw new Error("invalid block")
+    }
+
+    binary.writeByte(0x02)
+    binary.writeByte(this.blockType)
+    this.instrs.store(binary)
+  }
 }
 
 class LoopInstrNode extends InstrNode {
@@ -647,6 +657,16 @@ class LoopInstrNode extends InstrNode {
     this.instrs = new ExprNode()
     this.instrs.load(binary)
   }
+
+  store(binary:Binary) {
+    if (this.blockType === undefined || this.instrs === undefined) {
+      throw new Error("invalid loop")
+    }
+
+    binary.writeByte(0x03)
+    binary.writeByte(this.blockType)
+    this.instrs.store(binary)
+  }
 }
 
 class BrInstrNode extends InstrNode {
@@ -655,6 +675,15 @@ class BrInstrNode extends InstrNode {
   load(binary:Binary) {
     this.labelIdx = binary.readU32()
   }
+
+  store(binary:Binary) {
+    if (this.labelIdx === undefined) {
+      throw new Error("invalid br")
+    }
+
+    binary.writeByte(0x0c)
+    binary.writeU32(this.labelIdx)
+  }
 }
 
 class BrIfInstrNode extends InstrNode {
@@ -662,6 +691,15 @@ class BrIfInstrNode extends InstrNode {
 
   load(binary:Binary) {
     this.labelIdx = binary.readU32()
+  }
+
+  store(binary:Binary) {
+    if (this.labelIdx === undefined) {
+      throw new Error("invalid br_if")
+    }
+
+    binary.writeByte(0x0d)
+    binary.writeU32(this.labelIdx)
   }
 }
 
@@ -692,6 +730,15 @@ class LocalSetInstrNode extends InstrNode {
   load(binary:Binary) {
     this.localIdx = binary.readU32()
   }
+
+  store(binary:Binary) {
+    if (this.localIdx === undefined) {
+      throw new Error("invalid local.set")
+    }
+
+    binary.writeByte(Op.LocalGet)
+    binary.writeU32(this.localIdx)
+  }
 }
 
 class I32ConstInstrNode extends InstrNode {
@@ -711,6 +758,9 @@ class I32ConstInstrNode extends InstrNode {
 }
 
 class I32GeUInstrNode extends InstrNode {
+  store(binary:Binary) {
+    binary.writeByte(Op.I32GeU)
+  }
 }
 
 class I32AddInstrNode extends InstrNode {
