@@ -148,7 +148,8 @@ export class Binary {
     while (true) {
       let low = num & 0b01111111
       num = num >> 7
-      if (num === 0) {
+      //if (num === 0) {
+      if (num === 0 && (low & 0b01000000) === 0) {
         bytes.push(low)
         break
       } else {

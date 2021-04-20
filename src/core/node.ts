@@ -618,7 +618,7 @@ class LocalSetInstrNode extends InstrNode {
       throw new Error("invalid local.set")
     }
 
-    binary.writeByte(Op.LocalGet)
+    binary.writeByte(Op.LocalSet)
     binary.writeU32(this.localIdx)
   }
 }
