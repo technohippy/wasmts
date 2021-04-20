@@ -1,7 +1,7 @@
 // deno test --allow-read 
 import { assert, assertEquals } from "https://deno.land/std@0.93.0/testing/asserts.ts"
-import { ModuleNode } from "../src/core/node.ts"
 import { Binary } from "../src/core/binary.ts"
+import { ModuleNode } from "../src/core/node.ts"
 
 async function loadModule(filepath:string):Promise<[ModuleNode, Binary]> {
   const code = await Deno.readFile(filepath)
@@ -67,6 +67,17 @@ Deno.test("store loop.wasm", async () => {
   // TODO: 謎
   // lebで e4 00 と 64 は両方とも100だと思うけど
   // ここではwat2wasmで生成した方はe4 00になり
-  // 今回のプログラムでは64になるので一致しない
+  // 今回のプログラムでは64になるのでバイナリが一致しない
   //assertEquals(inBinary.toString(), outBinary.toString())
+})
+
+// invoke
+
+Deno.test("invoke add.wasm", async () => {
+  const [mod] = await loadModule("./test/data/wasm/add.wasm")
+  const inst = mod.instantiate()
+  assertEquals(3, inst.exports.add(1, 2))
+  assertEquals(0, inst.exports.add(42, -42))
+  assertEquals(1000, inst.exports.add(999, 1))
+  //assertEquals(10000, inst.exports.add(9999, 1))
 })

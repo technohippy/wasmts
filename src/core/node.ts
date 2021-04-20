@@ -1,11 +1,79 @@
 // deno run --allow-read src/wasmloader.ts test/data/wasm/module.wasm
 
 import { Binary } from "./binary.ts"
+import { Instance, Context } from "./instance.ts"
 
 export class ModuleNode {
   magic?: ArrayBuffer
   version?: ArrayBuffer
   sections: SectionNode[] = []
+
+  get customSection():CustomSectionNode[] {
+    const ret:CustomSectionNode[] = []
+    for (const section of this.sections) {
+      if (section instanceof CustomSectionNode) {
+        ret.push(section)
+      }
+    }
+    return ret
+  }
+
+  get typeSection():TypeSectionNode | null {
+    return this.getSection<TypeSectionNode>(TypeSectionNode)
+  }
+
+  get importSection():ImportSectionNode | null {
+    return this.getSection<ImportSectionNode>(ImportSectionNode)
+  }
+
+  get functionSection():FunctionSectionNode | null {
+    return this.getSection<FunctionSectionNode>(FunctionSectionNode)
+  }
+
+  get tableSection():TableSectionNode | null {
+    return this.getSection<TableSectionNode>(TableSectionNode)
+  }
+
+  get memorySection():MemorySectionNode | null {
+    return this.getSection<MemorySectionNode>(MemorySectionNode)
+  }
+
+  get globalSection():GlobalSectionNode | null {
+    return this.getSection<GlobalSectionNode>(GlobalSectionNode)
+  }
+
+  get exportSection():ExportSectionNode | null {
+    return this.getSection<ExportSectionNode>(ExportSectionNode)
+  }
+
+  get startSection():StartSectionNode | null {
+    return this.getSection<StartSectionNode>(StartSectionNode)
+  }
+
+  get elementSection():ElementSectionNode | null {
+    return this.getSection<ElementSectionNode>(ElementSectionNode)
+  }
+
+  get codeSection():CodeSectionNode | null {
+    return this.getSection<CodeSectionNode>(CodeSectionNode)
+  }
+  
+  get dataSection():DataSectionNode | null {
+    return this.getSection<DataSectionNode>(DataSectionNode)
+  }
+
+  get dataCountSection():DataCountSectionNode | null {
+    return this.getSection<DataCountSectionNode>(DataCountSectionNode)
+  }
+
+  getSection<S extends SectionNode>(cls:Function):S | null {
+    for (const section of this.sections) {
+      if (section.constructor === cls) {
+        return section as S
+      }
+    }
+    return null
+  }
 
   load(binary:Binary) {
     this.magic = binary.readBytes(4)
@@ -36,6 +104,12 @@ export class ModuleNode {
     for (const section of this.sections) {
       section.store(binary)
     }
+  }
+
+  instantiate(importObject?:any):Instance {
+    const inst = new Instance(this, importObject)
+    inst.compile()
+    return inst
   }
 }
 
@@ -230,7 +304,7 @@ class DataCountSectionNode extends SectionNode {
   }
 }
 
-class FuncTypeNode {
+export class FuncTypeNode {
   static get TAG() { return 0x60 }
 
   paramType = new ResultTypeNode()
@@ -269,14 +343,14 @@ class ResultTypeNode {
   }
 }
 
-class CodeNode {
+export class CodeNode {
   size?: number
   func?: FuncNode
 
   load(binary:Binary) {
     this.size = binary.readU32()
     this.func = new FuncNode()
-    this.func.load(binary)
+    this.func.load(binary) // TODO: ここでsizeを使うべき？
   }
 
   store(binary:Binary) {
@@ -424,6 +498,10 @@ class InstrNode {
   store(binary:Binary) {
     throw new Error(`subclass responsibility: ${this.constructor.name}`)
   }
+
+  invoke(context:Context) {
+    throw new Error(`subclass responsibility: ${this.constructor.name}`)
+  }
 }
 
 class BlockInstrNode extends InstrNode {
@@ -507,7 +585,7 @@ class NopInstrNode extends InstrNode {
 }
 
 class LocalGetInstrNode extends InstrNode {
-  localIdx?: number
+  localIdx!: number
 
   load(binary:Binary) {
     this.localIdx = binary.readU32()
@@ -520,6 +598,11 @@ class LocalGetInstrNode extends InstrNode {
 
     binary.writeByte(Op.LocalGet)
     binary.writeU32(this.localIdx)
+  }
+
+  invoke(context:Context) {
+    const local = context.locals[this.localIdx]
+    local.store(context.stack)
   }
 }
 
@@ -565,6 +648,12 @@ class I32GeUInstrNode extends InstrNode {
 class I32AddInstrNode extends InstrNode {
   store(binary:Binary) {
     binary.writeByte(Op.I32Add)
+  }
+
+  invoke(context:Context) {
+    const rhs = context.stack.readI32()
+    const lhs = context.stack.readI32()
+    context.stack.writeI32(lhs+rhs)
   }
 }
 

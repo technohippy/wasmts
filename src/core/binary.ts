@@ -20,6 +20,14 @@ export class Binary {
     this.#view = new DataView(buffer)
   }
 
+  protected getView(): DataView {
+    return this.#view
+  }
+
+  protected setCursor(c:number) {
+    this.#cursor = c
+  }
+
   truncate():Binary {
     return new Binary({buffer:this.#buffer.slice(0, this.#cursor)})
   }
@@ -136,17 +144,20 @@ export class Binary {
       return
     }
 
+    const bytes = []
     while (true) {
       let low = num & 0b01111111
       num = num >> 7
       if (num === 0) {
-        this.writeByte(low)
+        bytes.push(low)
         break
       } else {
         low = low | 0b10000000
-        this.writeByte(low)
+        bytes.push(low)
       }
     }
+    const u8a = new Uint8Array(bytes)
+    this.writeBytes(u8a.buffer)
   }
 
   writeS32(num:number) {
@@ -156,18 +167,21 @@ export class Binary {
     }
 
     // negative
+    const bytes = []
     num = -(num+1)
     while (true) {
       let low = (num & 0b01111111) ^ 0b01111111
       num = num >> 7
       if (num === 0) {
-        this.writeByte(low)
+        bytes.push(low)
         break
       } else {
         low = low | 0b10000000
-        this.writeByte(low)
+        bytes.push(low)
       }
     }
+    const u8a = new Uint8Array(bytes)
+    this.writeBytes(u8a.buffer)
   }
 
   writeI32(num:number) {
@@ -199,5 +213,24 @@ export class Binary {
       out += h
     }
     return out.replace(/\n$/, "")
+  }
+}
+
+export class StackBinary extends Binary {
+  readBytes(size:number): Uint8Array {
+    if (this.cursor-size < 0) {
+      return new Uint8Array(0)
+    }
+
+    const slice = this.buffer.slice(this.cursor-size, this.cursor)
+    this.setCursor(this.cursor-size)
+    return new Uint8Array(slice).reverse()
+  }
+
+  writeBytes(bytes:ArrayBuffer) {
+    const u8s = new Uint8Array(bytes).reverse()
+    for (let byte of u8s) {
+      this.writeByte(byte)
+    }
   }
 }
