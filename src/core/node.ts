@@ -505,8 +505,8 @@ class InstrNode {
 }
 
 class BlockInstrNode extends InstrNode {
-  blockType?: BlockType
-  instrs?: ExprNode
+  blockType!: BlockType
+  instrs!: ExprNode
 
   load(binary:Binary) {
     this.blockType = binary.readByte()
@@ -523,11 +523,29 @@ class BlockInstrNode extends InstrNode {
     binary.writeByte(this.blockType)
     this.instrs.store(binary)
   }
+
+  invoke(context:Context) {
+    let br = false
+    while (true) {
+      context.depth += 1
+      context.branch -= 1
+      for (const instr of this.instrs.instrs) {
+        instr.invoke(context)
+        if (0 <= context.branch) {
+          context.branch -= 1
+          br = true
+          break
+        }
+      }
+      context.depth -= 1
+      if (br) break
+    }
+  }
 }
 
 class LoopInstrNode extends InstrNode {
-  blockType?: BlockType
-  instrs?: ExprNode
+  blockType!: BlockType
+  instrs!: ExprNode
 
   load(binary:Binary) {
     this.blockType = binary.readByte()
@@ -544,10 +562,28 @@ class LoopInstrNode extends InstrNode {
     binary.writeByte(this.blockType)
     this.instrs.store(binary)
   }
+
+  invoke(context:Context) {
+    let br = false
+    while (true) {
+      context.depth += 1
+      context.branch -= 1
+      for (const instr of this.instrs.instrs) {
+        instr.invoke(context)
+        if (0 <= context.branch) {
+          context.branch -= 1
+          br = true
+          break
+        }
+      }
+      context.depth -= 1
+      if (br) break
+    }
+  }
 }
 
 class BrInstrNode extends InstrNode {
-  labelIdx?: LabelIdx
+  labelIdx!: LabelIdx
 
   load(binary:Binary) {
     this.labelIdx = binary.readU32()
@@ -561,10 +597,14 @@ class BrInstrNode extends InstrNode {
     binary.writeByte(0x0c)
     binary.writeU32(this.labelIdx)
   }
+  
+  invoke(context:Context) {
+    context.branch = this.labelIdx
+  }
 }
 
 class BrIfInstrNode extends InstrNode {
-  labelIdx?: LabelIdx
+  labelIdx!: LabelIdx
 
   load(binary:Binary) {
     this.labelIdx = binary.readU32()
@@ -577,6 +617,13 @@ class BrIfInstrNode extends InstrNode {
 
     binary.writeByte(0x0d)
     binary.writeU32(this.labelIdx)
+  }
+  
+  invoke(context:Context) {
+    const cond = context.stack.readI32()
+    if (cond !== 0) {
+      context.branch = this.labelIdx
+    }
   }
 }
 
@@ -607,7 +654,7 @@ class LocalGetInstrNode extends InstrNode {
 }
 
 class LocalSetInstrNode extends InstrNode {
-  localIdx?: number
+  localIdx!: number
 
   load(binary:Binary) {
     this.localIdx = binary.readU32()
@@ -621,10 +668,15 @@ class LocalSetInstrNode extends InstrNode {
     binary.writeByte(Op.LocalSet)
     binary.writeU32(this.localIdx)
   }
+
+  invoke(context:Context) {
+    const local = context.locals[this.localIdx]
+    local.load(context.stack)
+  }
 }
 
 class I32ConstInstrNode extends InstrNode {
-  num?: number
+  num!: number
 
   load(binary:Binary) {
     this.num = binary.readI32()
@@ -637,11 +689,21 @@ class I32ConstInstrNode extends InstrNode {
     binary.writeByte(Op.I32Const)
     binary.writeI32(this.num)
   }
+
+  invoke(context:Context) {
+    context.stack.writeI32(this.num)
+  }
 }
 
 class I32GeUInstrNode extends InstrNode {
   store(binary:Binary) {
     binary.writeByte(Op.I32GeU)
+  }
+
+  invoke(context:Context) {
+    const rhs = context.stack.readI32()
+    const lhs = context.stack.readI32()
+    context.stack.writeI32(lhs >= rhs ? 1 : 0)
   }
 }
 

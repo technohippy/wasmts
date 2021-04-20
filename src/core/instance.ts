@@ -151,6 +151,28 @@ class LocalValue {
         throw new Error(`invalid local type: ${this.#type}`)
     }
   }
+
+  load(binary:Binary) {
+    switch(this.#type) {
+      case 0x7f: // TODO: i32
+        this.#value = binary.readI32()
+        break
+/*
+      case 0x7e: // TODO: i64
+        this.#value = binary.readI64()
+        break
+      case 0x7d: // TODO: f32
+        this.#value = binary.readF32()
+        binary.writeF32(this.#value)
+        break
+      case 0x7c: // TODO: f64
+        this.#value = binary.readF64()
+        break
+*/
+      default:
+        throw new Error(`invalid local type: ${this.#type}`)
+    }
+  }
 }
 
 export class Context {

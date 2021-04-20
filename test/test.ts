@@ -77,3 +77,9 @@ Deno.test("invoke add.wasm", async () => {
   assertEquals(1000, inst.exports.add(999, 1))
   assertEquals(10000, inst.exports.add(9999, 1))
 })
+
+Deno.test("invoke loop.wasm", async () => {
+  const [mod] = await loadModule("./test/data/wasm/loop.wasm")
+  const inst = mod.instantiate()
+  assertEquals(300, inst.exports.loop())
+})
