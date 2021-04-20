@@ -1,0 +1,19 @@
+<!doctype html>
+
+<html>
+
+  <head>
+    <meta charset="utf-8">
+    <title>WASM doubleloop example</title>
+  </head>
+
+  <body>
+    <script>
+      WebAssembly.instantiateStreaming(fetch('doubleloop.wasm')).then(function(obj) {
+        const result = obj.instance.exports.loop()
+        console.log(result);
+      });
+    </script>
+  </body>
+
+</html>

@@ -37,6 +37,12 @@ Deno.test("load loop.wasm", async () => {
   assertEquals(4, mod.sections.length)
 })
 
+Deno.test("load if.wasm", async () => {
+  const [mod] = await loadModule("./test/data/wasm/if.wasm")
+  assert(true, "no error")
+  assertEquals(4, mod.sections.length)
+})
+
 // store
 
 Deno.test("store module.wasm", async () => {
@@ -67,6 +73,13 @@ Deno.test("store loop.wasm", async () => {
   assertEquals(inBinary.toString(), outBinary.toString())
 })
 
+Deno.test("store if.wasm", async () => {
+  const [mod, inBinary] = await loadModule("./test/data/wasm/if.wasm")
+  const outBinary = new Binary({buffer:new ArrayBuffer(1024)})
+  mod.store(outBinary)
+  assertEquals(inBinary.toString(), outBinary.toString())
+})
+
 // invoke
 
 Deno.test("invoke add.wasm", async () => {
@@ -82,4 +95,19 @@ Deno.test("invoke loop.wasm", async () => {
   const [mod] = await loadModule("./test/data/wasm/loop.wasm")
   const inst = mod.instantiate()
   assertEquals(300, inst.exports.loop())
+})
+
+Deno.test("invoke doubleloop.wasm", async () => {
+  const [mod] = await loadModule("./test/data/wasm/doubleloop.wasm")
+  const inst = mod.instantiate()
+  assertEquals(45, inst.exports.loop())
+})
+
+Deno.test("invoke if.wasm", async () => {
+  const [mod] = await loadModule("./test/data/wasm/if.wasm")
+  const inst = mod.instantiate()
+  assertEquals(0, inst.exports.ge10(5))
+  assertEquals(0, inst.exports.ge10(9))
+  assertEquals(1, inst.exports.ge10(10))
+  assertEquals(1, inst.exports.ge10(15))
 })

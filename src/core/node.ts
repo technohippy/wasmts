@@ -442,11 +442,15 @@ class ExportDescNode {
 
 class ExprNode {
   instrs: InstrNode[] = []
+  endOp!: Op
 
   load(binary:Binary) {
     while (true) {
       const opcode = binary.readByte() as Op
-      if (opcode === Op.End) break
+      if (opcode === Op.End || opcode === Op.Else) {
+        this.endOp = opcode
+        break
+      }
 
       const instrClass = InstrNode.classByOpcode(opcode)
       if (!instrClass) {
@@ -465,7 +469,7 @@ class ExprNode {
     for (const instr of this.instrs) {
       instr.store(binary)
     }
-    binary.writeByte(Op.End)
+    binary.writeByte(this.endOp)
   }
 }
 
@@ -475,8 +479,10 @@ class InstrNode {
   static classByOpcode(opcode:Op): typeof InstrNode | undefined {
     return {
       [Op.End]: NopInstrNode,
+      [Op.Else]: NopInstrNode,
       [Op.Block]: BlockInstrNode,
       [Op.Loop]: LoopInstrNode,
+      [Op.If]: IfInstrNode,
       [Op.Br]: BrInstrNode,
       [Op.BrIf]: BrIfInstrNode,
       [Op.I32Const]: I32ConstInstrNode,
@@ -578,6 +584,48 @@ class LoopInstrNode extends InstrNode {
       }
       context.depth -= 1
       if (br) break
+    }
+  }
+}
+
+class IfInstrNode extends InstrNode {
+  blockType!: BlockType
+  thenInstrs!: ExprNode
+  elseInstrs?: ExprNode
+
+  load(binary:Binary) {
+    this.blockType = binary.readByte()
+    this.thenInstrs = new ExprNode()
+    this.thenInstrs.load(binary)
+    if (this.thenInstrs.endOp === Op.Else) {
+      this.elseInstrs = new ExprNode()
+      this.elseInstrs.load(binary)
+    }
+  }
+
+  store(binary:Binary) {
+    if (this.blockType === undefined || this.thenInstrs === undefined) {
+      throw new Error("invalid if")
+    }
+
+    binary.writeByte(0x04) // TODO
+    binary.writeByte(this.blockType)
+    this.thenInstrs.store(binary)
+    this.elseInstrs?.store(binary)
+  }
+
+  invoke(context:Context) {
+    const cond = context.stack.readI32()
+    if (cond !== 0) {
+      // TODO: brとかreturnとか
+      for (const instr of this.thenInstrs.instrs) {
+        instr.invoke(context)
+      }
+    } else if (this.elseInstrs !== undefined) {
+      // TODO: brとかreturnとか
+      for (const instr of this.elseInstrs.instrs) {
+        instr.invoke(context)
+      }
     }
   }
 }
@@ -743,6 +791,8 @@ type BlockType = 0x40 | ValType | S33
 const Op = {
   Block: 0x02,
   Loop: 0x03,
+  If: 0x04,
+  Else: 0x05,
   Br: 0x0c,
   BrIf: 0x0d,
   LocalGet: 0x20,
