@@ -205,7 +205,7 @@ export class Binary {
   toString(): string {
     let out = ""
     const u8s = new Uint8Array(this.#buffer)
-    for (let i = 0; i < this.cursor; i++) {
+    for (let i = 0; i < this.#cursor; i++) {
       let h = u8s[i].toString(16)
       if (h.length === 1) h = `0${h}`
       if (i % 16 === 15) h += "\n"
