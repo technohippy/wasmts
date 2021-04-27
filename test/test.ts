@@ -1,14 +1,14 @@
 // deno test --allow-read 
 import { assert, assertEquals } from "https://deno.land/std@0.93.0/testing/asserts.ts"
-import { Binary } from "../src/core/binary.ts"
+import { Buffer } from "../src/core/buffer.ts"
 import { ModuleNode } from "../src/core/node.ts"
 
-async function loadModule(filepath:string):Promise<[ModuleNode, Binary]> {
+async function loadModule(filepath:string):Promise<[ModuleNode, Buffer]> {
   const code = await Deno.readFile(filepath)
-  const binary = new Binary(code)
+  const buffer = new Buffer(code)
   const mod = new ModuleNode()
-  mod.load(binary)
-  return [mod, binary]
+  mod.load(buffer)
+  return [mod, buffer]
 }
 
 // load
@@ -46,38 +46,38 @@ Deno.test("load if.wasm", async () => {
 // store
 
 Deno.test("store module.wasm", async () => {
-  const [mod, inBinary] = await loadModule("./test/data/wasm/module.wasm")
-  const outBinary = new Binary({buffer:new ArrayBuffer(1024)})
-  mod.store(outBinary)
-  assertEquals(inBinary.toString(), outBinary.toString())
+  const [mod, inBuffer] = await loadModule("./test/data/wasm/module.wasm")
+  const outBuffer = new Buffer({buffer:new ArrayBuffer(1024)})
+  mod.store(outBuffer)
+  assertEquals(inBuffer.toString(), outBuffer.toString())
 })
 
 Deno.test("store simple.wasm", async () => {
-  const [mod, inBinary] = await loadModule("./test/data/wasm/simple.wasm")
-  const outBinary = new Binary({buffer:new ArrayBuffer(1024)})
-  mod.store(outBinary)
-  assertEquals(inBinary.toString(), outBinary.toString())
+  const [mod, inBuffer] = await loadModule("./test/data/wasm/simple.wasm")
+  const outBuffer = new Buffer({buffer:new ArrayBuffer(1024)})
+  mod.store(outBuffer)
+  assertEquals(inBuffer.toString(), outBuffer.toString())
 })
 
 Deno.test("store add.wasm", async () => {
-  const [mod, inBinary] = await loadModule("./test/data/wasm/add.wasm")
-  const outBinary = new Binary({buffer:new ArrayBuffer(1024)})
-  mod.store(outBinary)
-  assertEquals(inBinary.toString(), outBinary.toString())
+  const [mod, inBuffer] = await loadModule("./test/data/wasm/add.wasm")
+  const outBuffer = new Buffer({buffer:new ArrayBuffer(1024)})
+  mod.store(outBuffer)
+  assertEquals(inBuffer.toString(), outBuffer.toString())
 })
 
 Deno.test("store loop.wasm", async () => {
-  const [mod, inBinary] = await loadModule("./test/data/wasm/loop.wasm")
-  const outBinary = new Binary({buffer:new ArrayBuffer(1024)})
-  mod.store(outBinary)
-  assertEquals(inBinary.toString(), outBinary.toString())
+  const [mod, inBuffer] = await loadModule("./test/data/wasm/loop.wasm")
+  const outBuffer = new Buffer({buffer:new ArrayBuffer(1024)})
+  mod.store(outBuffer)
+  assertEquals(inBuffer.toString(), outBuffer.toString())
 })
 
 Deno.test("store if.wasm", async () => {
-  const [mod, inBinary] = await loadModule("./test/data/wasm/if.wasm")
-  const outBinary = new Binary({buffer:new ArrayBuffer(1024)})
-  mod.store(outBinary)
-  assertEquals(inBinary.toString(), outBinary.toString())
+  const [mod, inBuffer] = await loadModule("./test/data/wasm/if.wasm")
+  const outBuffer = new Buffer({buffer:new ArrayBuffer(1024)})
+  mod.store(outBuffer)
+  assertEquals(inBuffer.toString(), outBuffer.toString())
 })
 
 // invoke

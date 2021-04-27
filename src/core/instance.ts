@@ -1,5 +1,5 @@
 import { ModuleNode, FuncTypeNode, CodeNode } from "./node.ts"
-import { Binary, StackBinary } from "./binary.ts"
+import { Buffer, StackBuffer } from "./buffer.ts"
 
 export class Instance {
   #module: ModuleNode
@@ -113,7 +113,7 @@ class WasmFunction {
   }
 }
 
-// TODO: データはBinaryで保持して、get/setで型を意識したほうがいいかも
+// TODO: データはBufferで保持して、get/setで型を意識したほうがいいかも
 class LocalValue {
   #type:number
   #value:number
@@ -131,20 +131,20 @@ class LocalValue {
     this.#value = value
   }
 
-  store(binary:Binary) {
+  store(buffer:Buffer) {
     switch(this.#type) {
       case 0x7f: // TODO: i32
-        binary.writeI32(this.#value)
+        buffer.writeI32(this.#value)
         break
 /*
       case 0x7e: // TODO: i64
-        binary.writeI64(this.#value)
+        buffer.writeI64(this.#value)
         break
       case 0x7d: // TODO: f32
-        binary.writeF32(this.#value)
+        buffer.writeF32(this.#value)
         break
       case 0x7c: // TODO: f64
-        binary.writeF64(this.#value)
+        buffer.writeF64(this.#value)
         break
 */
       default:
@@ -152,21 +152,21 @@ class LocalValue {
     }
   }
 
-  load(binary:Binary) {
+  load(buffer:Buffer) {
     switch(this.#type) {
       case 0x7f: // TODO: i32
-        this.#value = binary.readI32()
+        this.#value = buffer.readI32()
         break
 /*
       case 0x7e: // TODO: i64
-        this.#value = binary.readI64()
+        this.#value = buffer.readI64()
         break
       case 0x7d: // TODO: f32
-        this.#value = binary.readF32()
-        binary.writeF32(this.#value)
+        this.#value = buffer.readF32()
+        buffer.writeF32(this.#value)
         break
       case 0x7c: // TODO: f64
-        this.#value = binary.readF64()
+        this.#value = buffer.readF64()
         break
 */
       default:
@@ -176,14 +176,14 @@ class LocalValue {
 }
 
 export class Context {
-  stack:Binary
+  stack:Buffer
   functions:WasmFunction[]
   locals:LocalValue[]
   branch:number
   depth:number
 
   constructor() {
-    this.stack = new StackBinary({buffer:new ArrayBuffer(1024)}) // TODO
+    this.stack = new StackBuffer({buffer:new ArrayBuffer(1024)}) // TODO
     this.functions = []
     /*
     this.memories = []

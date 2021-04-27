@@ -1,6 +1,6 @@
 // deno run --allow-read src/wasmloader.ts test/data/wasm/module.wasm
 
-import { Binary } from "./binary.ts"
+import { Buffer } from "./buffer.ts"
 import { Instance, Context } from "./instance.ts"
 
 export class ModuleNode {
@@ -75,34 +75,34 @@ export class ModuleNode {
     return null
   }
 
-  load(binary:Binary) {
-    this.magic = binary.readBytes(4)
-    this.version = binary.readBytes(4)
+  load(buffer:Buffer) {
+    this.magic = buffer.readBytes(4)
+    this.version = buffer.readBytes(4)
     while (true) {
-      if (binary.eof) break
+      if (buffer.eof) break
 
-      const section = this.loadSection(binary)
+      const section = this.loadSection(buffer)
       this.sections.push(section)
     }
   }
 
-  loadSection(binary:Binary): SectionNode {
-    const sectionId = binary.readByte()
-    const sectionSize = binary.readU32()
-    const sectionsBinary = binary.readBinary(sectionSize)
+  loadSection(buffer:Buffer): SectionNode {
+    const sectionId = buffer.readByte()
+    const sectionSize = buffer.readU32()
+    const sectionsBuffer = buffer.readBuffer(sectionSize)
 
     const sectionClass = SectionNode.classById(sectionId)
     //@ts-ignore
     const section = new sectionClass()
-    section.load(sectionsBinary)
+    section.load(sectionsBuffer)
     return section
   }
 
-  store(binary:Binary) {
-    if (this.magic) binary.writeBytes(this.magic)
-    if (this.version) binary.writeBytes(this.version)
+  store(buffer:Buffer) {
+    if (this.magic) buffer.writeBytes(this.magic)
+    if (this.version) buffer.writeBytes(this.version)
     for (const section of this.sections) {
-      section.store(binary)
+      section.store(buffer)
     }
   }
 
@@ -132,20 +132,20 @@ abstract class SectionNode {
     ][sectionId]
   }
 
-  abstract load(binary:Binary): void
-  abstract store(binary:Binary): void
+  abstract load(buffer:Buffer): void
+  abstract store(buffer:Buffer): void
 }
 
 class CustomSectionNode extends SectionNode {
   name?:string
-  bytes?:Binary
+  bytes?:Buffer
 
-  load(binary:Binary) {
-    this.name = binary.readName()
-    this.bytes = binary.readBinary()
+  load(buffer:Buffer) {
+    this.name = buffer.readName()
+    this.bytes = buffer.readBuffer()
   }
 
-  store(binary:Binary) {
+  store(buffer:Buffer) {
     throw new Error("not yet")
   }
 }
@@ -153,29 +153,29 @@ class CustomSectionNode extends SectionNode {
 class TypeSectionNode extends SectionNode {
   funcTypes:FuncTypeNode[] = []
 
-  load(binary:Binary) {
-    this.funcTypes = binary.readVec<FuncTypeNode>(():FuncTypeNode => {
+  load(buffer:Buffer) {
+    this.funcTypes = buffer.readVec<FuncTypeNode>(():FuncTypeNode => {
       const functype = new FuncTypeNode()
-      functype.load(binary)
+      functype.load(buffer)
       return functype
     })
   }
 
-  store(binary:Binary) {
-    binary.writeByte(1) // TODO: ID
-    const sectionsBinary = new Binary({buffer:new ArrayBuffer(1024)}) // TODO: 1024 may not be enough.
-    sectionsBinary.writeVec(this.funcTypes, (funcType:FuncTypeNode) => {
-      funcType.store(sectionsBinary)
+  store(buffer:Buffer) {
+    buffer.writeByte(1) // TODO: ID
+    const sectionsBuffer = new Buffer({buffer:new ArrayBuffer(1024)}) // TODO: 1024 may not be enough.
+    sectionsBuffer.writeVec(this.funcTypes, (funcType:FuncTypeNode) => {
+      funcType.store(sectionsBuffer)
     })
-    binary.append(sectionsBinary)
+    buffer.append(sectionsBuffer)
   }
 }
 
 class ImportSectionNode extends SectionNode {
-  load(binary:Binary) {
+  load(buffer:Buffer) {
   }
 
-  store(binary:Binary) {
+  store(buffer:Buffer) {
     throw new Error("not yet")
   }
 }
@@ -183,45 +183,45 @@ class ImportSectionNode extends SectionNode {
 class FunctionSectionNode extends SectionNode {
   typeIdxs:TypeIdx[] = []
 
-  load(binary:Binary) {
-    this.typeIdxs = binary.readVec<TypeIdx>(():TypeIdx => {
-      return binary.readU32() as TypeIdx
+  load(buffer:Buffer) {
+    this.typeIdxs = buffer.readVec<TypeIdx>(():TypeIdx => {
+      return buffer.readU32() as TypeIdx
     })
   }
 
-  store(binary:Binary) {
-    binary.writeByte(3) // TODO: ID
-    const sectionsBinary = new Binary({buffer:new ArrayBuffer(1024)}) // TODO: 1024 may not be enough.
-    sectionsBinary.writeVec<TypeIdx>(this.typeIdxs, (typeIdx:TypeIdx) => {
-      sectionsBinary.writeU32(typeIdx)
+  store(buffer:Buffer) {
+    buffer.writeByte(3) // TODO: ID
+    const sectionsBuffer = new Buffer({buffer:new ArrayBuffer(1024)}) // TODO: 1024 may not be enough.
+    sectionsBuffer.writeVec<TypeIdx>(this.typeIdxs, (typeIdx:TypeIdx) => {
+      sectionsBuffer.writeU32(typeIdx)
     })
-    binary.append(sectionsBinary)
+    buffer.append(sectionsBuffer)
   }
 }
 
 class TableSectionNode extends SectionNode {
-  load(binary:Binary) {
+  load(buffer:Buffer) {
   }
 
-  store(binary:Binary) {
+  store(buffer:Buffer) {
     throw new Error("not yet")
   }
 }
 
 class MemorySectionNode extends SectionNode {
-  load(binary:Binary) {
+  load(buffer:Buffer) {
   }
 
-  store(binary:Binary) {
+  store(buffer:Buffer) {
     throw new Error("not yet")
   }
 }
 
 class GlobalSectionNode extends SectionNode {
-  load(binary:Binary) {
+  load(buffer:Buffer) {
   }
 
-  store(binary:Binary) {
+  store(buffer:Buffer) {
     throw new Error("not yet")
   }
 }
@@ -229,38 +229,38 @@ class GlobalSectionNode extends SectionNode {
 class ExportSectionNode extends SectionNode {
   exports: ExportNode[] = []
 
-  load(binary:Binary) {
-    this.exports = binary.readVec<ExportNode>(():ExportNode => {
+  load(buffer:Buffer) {
+    this.exports = buffer.readVec<ExportNode>(():ExportNode => {
       const ex = new ExportNode()
-      ex.load(binary)
+      ex.load(buffer)
       return ex
     })
   }
 
-  store(binary:Binary) {
-    binary.writeByte(7) // TODO: ID
-    const sectionsBinary = new Binary({buffer:new ArrayBuffer(1024)}) // TODO: 1024 may not be enough.
-    sectionsBinary.writeVec<ExportNode>(this.exports, (ex:ExportNode) => {
-      ex.store(sectionsBinary)
+  store(buffer:Buffer) {
+    buffer.writeByte(7) // TODO: ID
+    const sectionsBuffer = new Buffer({buffer:new ArrayBuffer(1024)}) // TODO: 1024 may not be enough.
+    sectionsBuffer.writeVec<ExportNode>(this.exports, (ex:ExportNode) => {
+      ex.store(sectionsBuffer)
     })
-    binary.append(sectionsBinary)
+    buffer.append(sectionsBuffer)
   }
 }
 
 class StartSectionNode extends SectionNode {
-  load(binary:Binary) {
+  load(buffer:Buffer) {
   }
 
-  store(binary:Binary) {
+  store(buffer:Buffer) {
     throw new Error("not yet")
   }
 }
 
 class ElementSectionNode extends SectionNode {
-  load(binary:Binary) {
+  load(buffer:Buffer) {
   }
 
-  store(binary:Binary) {
+  store(buffer:Buffer) {
     throw new Error("not yet")
   }
 }
@@ -268,38 +268,38 @@ class ElementSectionNode extends SectionNode {
 class CodeSectionNode extends SectionNode {
   codes: CodeNode[] = []
 
-  load(binary:Binary) {
-    this.codes = binary.readVec<CodeNode>(():CodeNode => {
+  load(buffer:Buffer) {
+    this.codes = buffer.readVec<CodeNode>(():CodeNode => {
       const code = new CodeNode()
-      code.load(binary)
+      code.load(buffer)
       return code
     })
   }
 
-  store(binary:Binary) {
-    binary.writeByte(10) // TODO: ID
-    const sectionsBinary = new Binary({buffer:new ArrayBuffer(1024)}) // TODO: 1024 may not be enough.
-    sectionsBinary.writeVec(this.codes, (code:CodeNode) => {
-      code.store(sectionsBinary)
+  store(buffer:Buffer) {
+    buffer.writeByte(10) // TODO: ID
+    const sectionsBuffer = new Buffer({buffer:new ArrayBuffer(1024)}) // TODO: 1024 may not be enough.
+    sectionsBuffer.writeVec(this.codes, (code:CodeNode) => {
+      code.store(sectionsBuffer)
     })
-    binary.append(sectionsBinary)
+    buffer.append(sectionsBuffer)
   }
 }
 
 class DataSectionNode extends SectionNode {
-  load(binary:Binary) {
+  load(buffer:Buffer) {
   }
 
-  store(binary:Binary) {
+  store(buffer:Buffer) {
     throw new Error("not yet")
   }
 }
 
 class DataCountSectionNode extends SectionNode {
-  load(binary:Binary) {
+  load(buffer:Buffer) {
   }
 
-  store(binary:Binary) {
+  store(buffer:Buffer) {
     throw new Error("not yet")
   }
 }
@@ -310,35 +310,35 @@ export class FuncTypeNode {
   paramType = new ResultTypeNode()
   resultType = new ResultTypeNode()
 
-  load(binary:Binary) {
-    if (binary.readByte() !== FuncTypeNode.TAG) {
+  load(buffer:Buffer) {
+    if (buffer.readByte() !== FuncTypeNode.TAG) {
       throw new Error("invalid functype")
     }
     this.paramType = new ResultTypeNode()
-    this.paramType.load(binary)
+    this.paramType.load(buffer)
     this.resultType = new ResultTypeNode()
-    this.resultType.load(binary)
+    this.resultType.load(buffer)
   }
 
-  store(binary:Binary) {
-    binary.writeByte(0x60)
-    this.paramType.store(binary)
-    this.resultType.store(binary)
+  store(buffer:Buffer) {
+    buffer.writeByte(0x60)
+    this.paramType.store(buffer)
+    this.resultType.store(buffer)
   }
 }
 
 class ResultTypeNode {
   valTypes: ValType[] = []
 
-  load(binary:Binary) {
-    this.valTypes = binary.readVec<ValType>(():ValType => {
-      return binary.readByte() as ValType
+  load(buffer:Buffer) {
+    this.valTypes = buffer.readVec<ValType>(():ValType => {
+      return buffer.readByte() as ValType
     })
   }
 
-  store(binary:Binary) {
-    binary.writeVec<ValType>(this.valTypes, (valType:ValType) => {
-      binary.writeByte(valType)
+  store(buffer:Buffer) {
+    buffer.writeVec<ValType>(this.valTypes, (valType:ValType) => {
+      buffer.writeByte(valType)
     })
   }
 }
@@ -347,16 +347,16 @@ export class CodeNode {
   size?: number
   func?: FuncNode
 
-  load(binary:Binary) {
-    this.size = binary.readU32()
+  load(buffer:Buffer) {
+    this.size = buffer.readU32()
     this.func = new FuncNode()
-    this.func.load(binary) // TODO: ここでsizeを使うべき？
+    this.func.load(buffer) // TODO: ここでsizeを使うべき？
   }
 
-  store(binary:Binary) {
-    const funcBinary = new Binary({buffer:new ArrayBuffer(1024)}) // TODO
-    this.func?.store(funcBinary)
-    binary.append(funcBinary)
+  store(buffer:Buffer) {
+    const funcBuffer = new Buffer({buffer:new ArrayBuffer(1024)}) // TODO
+    this.func?.store(funcBuffer)
+    buffer.append(funcBuffer)
   }
 }
 
@@ -364,21 +364,21 @@ class FuncNode {
   localses: LocalsNode[] = []
   expr?: ExprNode
 
-  load(binary:Binary) {
-    this.localses = binary.readVec<LocalsNode>(():LocalsNode => {
+  load(buffer:Buffer) {
+    this.localses = buffer.readVec<LocalsNode>(():LocalsNode => {
       const locals = new LocalsNode()
-      locals.load(binary)
+      locals.load(buffer)
       return locals
     })
     this.expr = new ExprNode()
-    this.expr.load(binary)
+    this.expr.load(buffer)
   }
 
-  store(binary:Binary) {
-    binary.writeVec<LocalsNode>(this.localses, (locals:LocalsNode) => {
-      locals.store(binary)
+  store(buffer:Buffer) {
+    buffer.writeVec<LocalsNode>(this.localses, (locals:LocalsNode) => {
+      locals.store(buffer)
     })
-    this.expr?.store(binary)
+    this.expr?.store(buffer)
   }
 }
 
@@ -386,18 +386,18 @@ class LocalsNode {
   num?: number
   valType?: ValType
 
-  load(binary:Binary) {
-    this.num = binary.readU32()
-    this.valType = binary.readByte() as ValType
+  load(buffer:Buffer) {
+    this.num = buffer.readU32()
+    this.valType = buffer.readByte() as ValType
   }
 
-  store(binary:Binary) {
+  store(buffer:Buffer) {
     if (this.num === undefined || this.valType === undefined) {
       throw new Error("invalid locals")
     }
 
-    binary.writeU32(this.num)
-    binary.writeByte(this.valType)
+    buffer.writeU32(this.num)
+    buffer.writeByte(this.valType)
   }
 }
 
@@ -405,19 +405,19 @@ class ExportNode {
   name?:string
   exportDesc?:ExportDescNode
 
-  load(binary:Binary) {
-    this.name = binary.readName()
+  load(buffer:Buffer) {
+    this.name = buffer.readName()
     this.exportDesc = new ExportDescNode()
-    this.exportDesc.load(binary)
+    this.exportDesc.load(buffer)
   }
 
-  store(binary:Binary) {
+  store(buffer:Buffer) {
     if (this.name === undefined || this.exportDesc === undefined) {
       throw new Error("invalid export")
     }
 
-    binary.writeName(this.name)
-    this.exportDesc.store(binary)
+    buffer.writeName(this.name)
+    this.exportDesc.store(buffer)
   }
 }
 
@@ -425,18 +425,18 @@ class ExportDescNode {
   tag?:number
   index?:number
 
-  load(binary:Binary) {
-    this.tag = binary.readByte()
-    this.index = binary.readU32()
+  load(buffer:Buffer) {
+    this.tag = buffer.readByte()
+    this.index = buffer.readU32()
   }
 
-  store(binary:Binary) {
+  store(buffer:Buffer) {
     if (this.tag === undefined || this.index === undefined) {
       throw new Error("invalid exportdesc")
     }
 
-    binary.writeByte(this.tag)
-    binary.writeU32(this.index)
+    buffer.writeByte(this.tag)
+    buffer.writeU32(this.index)
   }
 }
 
@@ -444,9 +444,9 @@ class ExprNode {
   instrs: InstrNode[] = []
   endOp!: Op
 
-  load(binary:Binary) {
+  load(buffer:Buffer) {
     while (true) {
-      const opcode = binary.readByte() as Op
+      const opcode = buffer.readByte() as Op
       if (opcode === Op.End || opcode === Op.Else) {
         this.endOp = opcode
         break
@@ -458,18 +458,18 @@ class ExprNode {
       }
 
       const instr = new instrClass(opcode)
-      instr.load(binary)
+      instr.load(buffer)
       this.instrs.push(instr)
 
-      if (binary.eof) break
+      if (buffer.eof) break
     }
   }
 
-  store(binary:Binary) {
+  store(buffer:Buffer) {
     for (const instr of this.instrs) {
-      instr.store(binary)
+      instr.store(buffer)
     }
-    binary.writeByte(this.endOp)
+    buffer.writeByte(this.endOp)
   }
 }
 
@@ -497,11 +497,11 @@ class InstrNode {
     this.opcode = opcode
   }
 
-  load(binary:Binary) {
+  load(buffer:Buffer) {
     // nop
   }
 
-  store(binary:Binary) {
+  store(buffer:Buffer) {
     throw new Error(`subclass responsibility: ${this.constructor.name}`)
   }
 
@@ -514,20 +514,20 @@ class BlockInstrNode extends InstrNode {
   blockType!: BlockType
   instrs!: ExprNode
 
-  load(binary:Binary) {
-    this.blockType = binary.readByte()
+  load(buffer:Buffer) {
+    this.blockType = buffer.readByte()
     this.instrs = new ExprNode()
-    this.instrs.load(binary)
+    this.instrs.load(buffer)
   }
 
-  store(binary:Binary) {
+  store(buffer:Buffer) {
     if (this.blockType === undefined || this.instrs === undefined) {
       throw new Error("invalid block")
     }
 
-    binary.writeByte(0x02)
-    binary.writeByte(this.blockType)
-    this.instrs.store(binary)
+    buffer.writeByte(0x02)
+    buffer.writeByte(this.blockType)
+    this.instrs.store(buffer)
   }
 
   invoke(context:Context) {
@@ -553,20 +553,20 @@ class LoopInstrNode extends InstrNode {
   blockType!: BlockType
   instrs!: ExprNode
 
-  load(binary:Binary) {
-    this.blockType = binary.readByte()
+  load(buffer:Buffer) {
+    this.blockType = buffer.readByte()
     this.instrs = new ExprNode()
-    this.instrs.load(binary)
+    this.instrs.load(buffer)
   }
 
-  store(binary:Binary) {
+  store(buffer:Buffer) {
     if (this.blockType === undefined || this.instrs === undefined) {
       throw new Error("invalid loop")
     }
 
-    binary.writeByte(0x03)
-    binary.writeByte(this.blockType)
-    this.instrs.store(binary)
+    buffer.writeByte(0x03)
+    buffer.writeByte(this.blockType)
+    this.instrs.store(buffer)
   }
 
   invoke(context:Context) {
@@ -593,25 +593,25 @@ class IfInstrNode extends InstrNode {
   thenInstrs!: ExprNode
   elseInstrs?: ExprNode
 
-  load(binary:Binary) {
-    this.blockType = binary.readByte()
+  load(buffer:Buffer) {
+    this.blockType = buffer.readByte()
     this.thenInstrs = new ExprNode()
-    this.thenInstrs.load(binary)
+    this.thenInstrs.load(buffer)
     if (this.thenInstrs.endOp === Op.Else) {
       this.elseInstrs = new ExprNode()
-      this.elseInstrs.load(binary)
+      this.elseInstrs.load(buffer)
     }
   }
 
-  store(binary:Binary) {
+  store(buffer:Buffer) {
     if (this.blockType === undefined || this.thenInstrs === undefined) {
       throw new Error("invalid if")
     }
 
-    binary.writeByte(0x04) // TODO
-    binary.writeByte(this.blockType)
-    this.thenInstrs.store(binary)
-    this.elseInstrs?.store(binary)
+    buffer.writeByte(0x04) // TODO
+    buffer.writeByte(this.blockType)
+    this.thenInstrs.store(buffer)
+    this.elseInstrs?.store(buffer)
   }
 
   invoke(context:Context) {
@@ -633,17 +633,17 @@ class IfInstrNode extends InstrNode {
 class BrInstrNode extends InstrNode {
   labelIdx!: LabelIdx
 
-  load(binary:Binary) {
-    this.labelIdx = binary.readU32()
+  load(buffer:Buffer) {
+    this.labelIdx = buffer.readU32()
   }
 
-  store(binary:Binary) {
+  store(buffer:Buffer) {
     if (this.labelIdx === undefined) {
       throw new Error("invalid br")
     }
 
-    binary.writeByte(0x0c)
-    binary.writeU32(this.labelIdx)
+    buffer.writeByte(0x0c)
+    buffer.writeU32(this.labelIdx)
   }
   
   invoke(context:Context) {
@@ -654,17 +654,17 @@ class BrInstrNode extends InstrNode {
 class BrIfInstrNode extends InstrNode {
   labelIdx!: LabelIdx
 
-  load(binary:Binary) {
-    this.labelIdx = binary.readU32()
+  load(buffer:Buffer) {
+    this.labelIdx = buffer.readU32()
   }
 
-  store(binary:Binary) {
+  store(buffer:Buffer) {
     if (this.labelIdx === undefined) {
       throw new Error("invalid br_if")
     }
 
-    binary.writeByte(0x0d)
-    binary.writeU32(this.labelIdx)
+    buffer.writeByte(0x0d)
+    buffer.writeU32(this.labelIdx)
   }
   
   invoke(context:Context) {
@@ -682,17 +682,17 @@ class NopInstrNode extends InstrNode {
 class LocalGetInstrNode extends InstrNode {
   localIdx!: number
 
-  load(binary:Binary) {
-    this.localIdx = binary.readU32()
+  load(buffer:Buffer) {
+    this.localIdx = buffer.readU32()
   }
 
-  store(binary:Binary) {
+  store(buffer:Buffer) {
     if (this.localIdx === undefined) {
       throw new Error("invalid local.get")
     }
 
-    binary.writeByte(Op.LocalGet)
-    binary.writeU32(this.localIdx)
+    buffer.writeByte(Op.LocalGet)
+    buffer.writeU32(this.localIdx)
   }
 
   invoke(context:Context) {
@@ -704,17 +704,17 @@ class LocalGetInstrNode extends InstrNode {
 class LocalSetInstrNode extends InstrNode {
   localIdx!: number
 
-  load(binary:Binary) {
-    this.localIdx = binary.readU32()
+  load(buffer:Buffer) {
+    this.localIdx = buffer.readU32()
   }
 
-  store(binary:Binary) {
+  store(buffer:Buffer) {
     if (this.localIdx === undefined) {
       throw new Error("invalid local.set")
     }
 
-    binary.writeByte(Op.LocalSet)
-    binary.writeU32(this.localIdx)
+    buffer.writeByte(Op.LocalSet)
+    buffer.writeU32(this.localIdx)
   }
 
   invoke(context:Context) {
@@ -726,16 +726,16 @@ class LocalSetInstrNode extends InstrNode {
 class I32ConstInstrNode extends InstrNode {
   num!: number
 
-  load(binary:Binary) {
-    this.num = binary.readI32()
+  load(buffer:Buffer) {
+    this.num = buffer.readI32()
   }
 
-  store(binary:Binary) {
+  store(buffer:Buffer) {
     if (this.num === undefined) {
       throw new Error("invalid number")
     }
-    binary.writeByte(Op.I32Const)
-    binary.writeI32(this.num)
+    buffer.writeByte(Op.I32Const)
+    buffer.writeI32(this.num)
   }
 
   invoke(context:Context) {
@@ -744,8 +744,8 @@ class I32ConstInstrNode extends InstrNode {
 }
 
 class I32GeUInstrNode extends InstrNode {
-  store(binary:Binary) {
-    binary.writeByte(Op.I32GeU)
+  store(buffer:Buffer) {
+    buffer.writeByte(Op.I32GeU)
   }
 
   invoke(context:Context) {
@@ -756,8 +756,8 @@ class I32GeUInstrNode extends InstrNode {
 }
 
 class I32AddInstrNode extends InstrNode {
-  store(binary:Binary) {
-    binary.writeByte(Op.I32Add)
+  store(buffer:Buffer) {
+    buffer.writeByte(Op.I32Add)
   }
 
   invoke(context:Context) {

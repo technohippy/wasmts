@@ -1,4 +1,4 @@
-export class Binary {
+export class Buffer {
   #cursor = 0
   #buffer: ArrayBuffer
   #view: DataView
@@ -28,18 +28,18 @@ export class Binary {
     this.#cursor = c
   }
 
-  truncate():Binary {
-    return new Binary({buffer:this.#buffer.slice(0, this.#cursor)})
+  truncate():Buffer {
+    return new Buffer({buffer:this.#buffer.slice(0, this.#cursor)})
   }
 
   peep(pos:number=0): number {
     return this.#view.getUint8(pos)
   }
 
-  append(binary:Binary) {
-    this.writeU32(binary.cursor)
-    for (let i = 0; i < binary.cursor; i++) {
-      this.writeByte(binary.peep(i))
+  append(buffer:Buffer) {
+    this.writeU32(buffer.cursor)
+    for (let i = 0; i < buffer.cursor; i++) {
+      this.writeByte(buffer.peep(i))
     }
   }
 
@@ -61,8 +61,8 @@ export class Binary {
     return new Uint8Array(slice)
   }
 
-  readBinary(size:number=this.#buffer.byteLength-this.#cursor): Binary {
-    return new Binary(this.readBytes(size))
+  readBuffer(size:number=this.#buffer.byteLength-this.#cursor): Buffer {
+    return new Buffer(this.readBytes(size))
   }
 
   readU32(): number{
@@ -217,7 +217,7 @@ export class Binary {
   }
 }
 
-export class StackBinary extends Binary {
+export class StackBuffer extends Buffer {
   readBytes(size:number): Uint8Array {
     if (this.cursor-size < 0) {
       return new Uint8Array(0)
