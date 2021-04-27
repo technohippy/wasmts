@@ -91,9 +91,10 @@ export class ModuleNode {
     const sectionSize = buffer.readU32()
     const sectionsBuffer = buffer.readBuffer(sectionSize)
 
-    const sectionClass = SectionNode.classById(sectionId)
-    //@ts-ignore
-    const section = new sectionClass()
+    const section = SectionNode.create(sectionId)
+    if (!section) {
+      throw new Error(`invalid section: ${sectionId}`)
+    }
     section.load(sectionsBuffer)
     return section
   }
@@ -114,8 +115,8 @@ export class ModuleNode {
 }
 
 abstract class SectionNode {
-  static classById(sectionId:number): typeof SectionNode {
-    return [
+  static create(sectionId:number): SectionNode | undefined {
+    const klass = [
       CustomSectionNode,
       TypeSectionNode,
       ImportSectionNode,
@@ -130,6 +131,8 @@ abstract class SectionNode {
       DataSectionNode,
       DataCountSectionNode
     ][sectionId]
+    if (!klass) return undefined
+    return new klass()
   }
 
   abstract load(buffer:Buffer): void
@@ -452,12 +455,10 @@ class ExprNode {
         break
       }
 
-      const instrClass = InstrNode.classByOpcode(opcode)
-      if (!instrClass) {
+      const instr = InstrNode.create(opcode)
+      if (!instr) {
         throw new Error(`invalid opcode: 0x${opcode.toString(16)}`)
       }
-
-      const instr = new instrClass(opcode)
       instr.load(buffer)
       this.instrs.push(instr)
 
@@ -476,8 +477,8 @@ class ExprNode {
 class InstrNode {
   opcode: Op
 
-  static classByOpcode(opcode:Op): typeof InstrNode | undefined {
-    return {
+  static create(opcode:Op): InstrNode | undefined {
+    const klass = {
       [Op.End]: NopInstrNode,
       [Op.Else]: NopInstrNode,
       [Op.Block]: BlockInstrNode,
@@ -491,6 +492,8 @@ class InstrNode {
       [Op.LocalGet]: LocalGetInstrNode,
       [Op.LocalSet]: LocalSetInstrNode,
     }[opcode]
+    if (!klass) return undefined
+    return new klass(opcode)
   }
 
   constructor(opcode:Op) {
