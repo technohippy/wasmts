@@ -486,6 +486,7 @@ class InstrNode {
       [Op.If]: IfInstrNode,
       [Op.Br]: BrInstrNode,
       [Op.BrIf]: BrIfInstrNode,
+      [Op.Call]: CallInstrNode,
       [Op.I32Const]: I32ConstInstrNode,
       [Op.I32GeU]: I32GeUInstrNode,
       [Op.I32Add]: I32AddInstrNode,
@@ -534,6 +535,8 @@ class BlockInstrNode extends InstrNode {
   }
 
   invoke(context:Context) {
+    if (context.debug) console.warn("invoke block")
+
     let br = false
     while (true) {
       context.depth += 1
@@ -573,6 +576,8 @@ class LoopInstrNode extends InstrNode {
   }
 
   invoke(context:Context) {
+    if (context.debug) console.warn("invoke loop")
+
     let br = false
     while (true) {
       context.depth += 1
@@ -618,6 +623,8 @@ class IfInstrNode extends InstrNode {
   }
 
   invoke(context:Context) {
+    if (context.debug) console.warn("invoke if")
+
     const cond = context.stack.readI32()
     if (cond !== 0) {
       // TODO: brとかreturnとか
@@ -650,6 +657,7 @@ class BrInstrNode extends InstrNode {
   }
   
   invoke(context:Context) {
+    if (context.debug) console.warn("invoke br")
     context.branch = this.labelIdx
   }
 }
@@ -671,9 +679,36 @@ class BrIfInstrNode extends InstrNode {
   }
   
   invoke(context:Context) {
+    if (context.debug) console.warn("invoke br_if")
     const cond = context.stack.readI32()
     if (cond !== 0) {
       context.branch = this.labelIdx
+    }
+  }
+}
+
+class CallInstrNode extends InstrNode {
+  funcIdx!: FuncIdx
+
+  load(buffer:Buffer) {
+    this.funcIdx = buffer.readU32()
+  }
+
+  store(buffer:Buffer) {
+    if (this.funcIdx === undefined) {
+      throw new Error("invalid call")
+    }
+
+    buffer.writeByte(0x10)
+    buffer.writeU32(this.funcIdx)
+  }
+
+  invoke(context:Context) {
+    if (context.debug) console.warn("invoke call")
+    const func = context.functions[this.funcIdx]
+    const result = func.invoke(context)
+    if (result) {
+      context.stack.writeI32(result) // TODO: type
     }
   }
 }
@@ -699,6 +734,7 @@ class LocalGetInstrNode extends InstrNode {
   }
 
   invoke(context:Context) {
+    if (context.debug) console.warn("invoke local.get")
     const local = context.locals[this.localIdx]
     local.store(context.stack)
   }
@@ -721,6 +757,7 @@ class LocalSetInstrNode extends InstrNode {
   }
 
   invoke(context:Context) {
+    if (context.debug) console.warn("invoke local.set")
     const local = context.locals[this.localIdx]
     local.load(context.stack)
   }
@@ -742,6 +779,7 @@ class I32ConstInstrNode extends InstrNode {
   }
 
   invoke(context:Context) {
+    if (context.debug) console.warn("invoke i32.const")
     context.stack.writeI32(this.num)
   }
 }
@@ -752,6 +790,7 @@ class I32GeUInstrNode extends InstrNode {
   }
 
   invoke(context:Context) {
+    if (context.debug) console.warn("invoke i32.get_u")
     const rhs = context.stack.readI32()
     const lhs = context.stack.readI32()
     context.stack.writeI32(lhs >= rhs ? 1 : 0)
@@ -764,6 +803,7 @@ class I32AddInstrNode extends InstrNode {
   }
 
   invoke(context:Context) {
+    if (context.debug) console.warn("invoke i32.add")
     const rhs = context.stack.readI32()
     const lhs = context.stack.readI32()
     context.stack.writeI32(lhs+rhs)
@@ -798,6 +838,7 @@ const Op = {
   Else: 0x05,
   Br: 0x0c,
   BrIf: 0x0d,
+  Call: 0x10,
   LocalGet: 0x20,
   LocalSet: 0x21,
   I32Const: 0x41,

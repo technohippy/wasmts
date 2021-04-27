@@ -69,6 +69,8 @@ export class Buffer {
     let num = 0
     let fig = 0
     while (true) {
+      if (4 < fig) throw new Error("invalid u32")
+
       const b = this.readByte()
       num = num | ((b & 0b01111111) << (7*fig))
       if ((b & 0b10000000) === 0) break
@@ -86,6 +88,8 @@ export class Buffer {
     let fig = 0
     let negative = false
     while (true) {
+      if (4 < fig) throw new Error("invalid s32")
+
       const b = this.readByte()
       num = num | ((b & 0b01111111) << (7*fig))
       rnum = rnum | (((b ^ 0b11111111) & 0b01111111) << (7*fig))

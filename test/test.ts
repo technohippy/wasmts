@@ -124,3 +124,9 @@ Deno.test("invoke if.wasm", async () => {
   assertEquals(1, inst.exports.ge10(10))
   assertEquals(1, inst.exports.ge10(15))
 })
+
+Deno.test("invoke call.wasm", async () => {
+  const [mod] = await loadModule("./test/data/wasm/call.wasm")
+  const inst = mod.instantiate()
+  assertEquals(47, inst.exports.add42(5))
+})

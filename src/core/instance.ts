@@ -7,6 +7,14 @@ export class Instance {
   #context: Context
   #exports: {[key:string]:any}
 
+  set debug(b:boolean) {
+    this.#context.debug = b
+  }
+
+  get debug():boolean {
+    return this.#context.debug
+  }
+
   get exports(): {[key:string]:any} {
     if (!Object.isFrozen(this.#exports)) {
       Object.freeze(this.#exports)
@@ -61,13 +69,15 @@ class WasmFunction {
 
   invoke(context:Context, ...args:number[]) {
     // args check
+    const params = [...args]
     const paramTypes = this.#funcType.paramType.valTypes
-    if (args.length !== paramTypes.length) {
-      throw new Error("invalid params")
+    for (let i = 0; i < paramTypes.length - args.length; i++) {
+      const param = context.stack.readI32() // TODO: valtype
+      params.push(param)
     }
 
     // set args
-    args.forEach((v, i) => {
+    params.forEach((v, i) => {
       context.locals[i] = new LocalValue(paramTypes[i], v)
     })
 
@@ -181,6 +191,8 @@ export class Context {
   locals:LocalValue[]
   branch:number
   depth:number
+
+  debug:boolean = false
 
   constructor() {
     this.stack = new StackBuffer({buffer:new ArrayBuffer(1024)}) // TODO
