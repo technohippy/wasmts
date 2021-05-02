@@ -68,7 +68,7 @@ export class ModuleNode {
 
   getSection<S extends SectionNode>(cls:Function):S | null {
     for (const section of this.sections) {
-      if (section.constructor === cls) {
+      if (section instanceof cls) {
         return section as S
       }
     }
@@ -324,7 +324,7 @@ export class FuncTypeNode {
   }
 
   store(buffer:Buffer) {
-    buffer.writeByte(0x60)
+    buffer.writeByte(FuncTypeNode.TAG)
     this.paramType.store(buffer)
     this.resultType.store(buffer)
   }
@@ -472,6 +472,12 @@ class ExprNode {
     }
     buffer.writeByte(this.endOp)
   }
+
+  invoke(context:Context) {
+    for (const instr of this.instrs) {
+      instr.invoke(context)
+    }
+  }
 }
 
 class InstrNode {
@@ -488,8 +494,12 @@ class InstrNode {
       [Op.BrIf]: BrIfInstrNode,
       [Op.Call]: CallInstrNode,
       [Op.I32Const]: I32ConstInstrNode,
+      [Op.I32Eqz]: I32EqzInstrNode,
+      [Op.I32LtS]: I32LtSInstrNode,
+      [Op.I32GeS]: I32GeSInstrNode,
       [Op.I32GeU]: I32GeUInstrNode,
       [Op.I32Add]: I32AddInstrNode,
+      [Op.I32RemS]: I32RemSInstrNode,
       [Op.LocalGet]: LocalGetInstrNode,
       [Op.LocalSet]: LocalSetInstrNode,
     }[opcode]
@@ -506,7 +516,7 @@ class InstrNode {
   }
 
   store(buffer:Buffer) {
-    throw new Error(`subclass responsibility: ${this.constructor.name}`)
+    buffer.writeByte(this.opcode)
   }
 
   invoke(context:Context) {
@@ -529,7 +539,7 @@ class BlockInstrNode extends InstrNode {
       throw new Error("invalid block")
     }
 
-    buffer.writeByte(0x02)
+    super.store(buffer)
     buffer.writeByte(this.blockType)
     this.instrs.store(buffer)
   }
@@ -570,7 +580,7 @@ class LoopInstrNode extends InstrNode {
       throw new Error("invalid loop")
     }
 
-    buffer.writeByte(0x03)
+    super.store(buffer)
     buffer.writeByte(this.blockType)
     this.instrs.store(buffer)
   }
@@ -616,7 +626,7 @@ class IfInstrNode extends InstrNode {
       throw new Error("invalid if")
     }
 
-    buffer.writeByte(0x04) // TODO
+    super.store(buffer)
     buffer.writeByte(this.blockType)
     this.thenInstrs.store(buffer)
     this.elseInstrs?.store(buffer)
@@ -628,14 +638,10 @@ class IfInstrNode extends InstrNode {
     const cond = context.stack.readI32()
     if (cond !== 0) {
       // TODO: brとかreturnとか
-      for (const instr of this.thenInstrs.instrs) {
-        instr.invoke(context)
-      }
-    } else if (this.elseInstrs !== undefined) {
+      this.thenInstrs.invoke(context)
+    } else {
       // TODO: brとかreturnとか
-      for (const instr of this.elseInstrs.instrs) {
-        instr.invoke(context)
-      }
+      this.elseInstrs?.invoke(context)
     }
   }
 }
@@ -652,7 +658,7 @@ class BrInstrNode extends InstrNode {
       throw new Error("invalid br")
     }
 
-    buffer.writeByte(0x0c)
+    super.store(buffer)
     buffer.writeU32(this.labelIdx)
   }
   
@@ -674,7 +680,7 @@ class BrIfInstrNode extends InstrNode {
       throw new Error("invalid br_if")
     }
 
-    buffer.writeByte(0x0d)
+    super.store(buffer)
     buffer.writeU32(this.labelIdx)
   }
   
@@ -699,7 +705,7 @@ class CallInstrNode extends InstrNode {
       throw new Error("invalid call")
     }
 
-    buffer.writeByte(0x10)
+    super.store(buffer)
     buffer.writeU32(this.funcIdx)
   }
 
@@ -729,7 +735,7 @@ class LocalGetInstrNode extends InstrNode {
       throw new Error("invalid local.get")
     }
 
-    buffer.writeByte(Op.LocalGet)
+    super.store(buffer)
     buffer.writeU32(this.localIdx)
   }
 
@@ -752,7 +758,7 @@ class LocalSetInstrNode extends InstrNode {
       throw new Error("invalid local.set")
     }
 
-    buffer.writeByte(Op.LocalSet)
+    super.store(buffer)
     buffer.writeU32(this.localIdx)
   }
 
@@ -774,7 +780,7 @@ class I32ConstInstrNode extends InstrNode {
     if (this.num === undefined) {
       throw new Error("invalid number")
     }
-    buffer.writeByte(Op.I32Const)
+    super.store(buffer)
     buffer.writeI32(this.num)
   }
 
@@ -784,29 +790,56 @@ class I32ConstInstrNode extends InstrNode {
   }
 }
 
-class I32GeUInstrNode extends InstrNode {
-  store(buffer:Buffer) {
-    buffer.writeByte(Op.I32GeU)
-  }
-
+class I32EqzInstrNode extends InstrNode {
   invoke(context:Context) {
-    if (context.debug) console.warn("invoke i32.get_u")
-    const rhs = context.stack.readI32()
-    const lhs = context.stack.readI32()
+    if (context.debug) console.warn("invoke i32.eqz")
+    const num = context.stack.readS32()
+    context.stack.writeI32(num === 0 ? 1 : 0)
+  }
+}
+
+class I32LtSInstrNode extends InstrNode {
+  invoke(context:Context) {
+    if (context.debug) console.warn("invoke i32.lt_s")
+    const rhs = context.stack.readS32()
+    const lhs = context.stack.readS32()
+    context.stack.writeI32(lhs < rhs ? 1 : 0)
+  }
+}
+
+class I32GeSInstrNode extends InstrNode {
+  invoke(context:Context) {
+    if (context.debug) console.warn("invoke i32.ge_s")
+    const rhs = context.stack.readS32()
+    const lhs = context.stack.readS32()
+    context.stack.writeI32(lhs >= rhs ? 1 : 0)
+  }
+}
+
+class I32GeUInstrNode extends InstrNode {
+  invoke(context:Context) {
+    if (context.debug) console.warn("invoke i32.ge_u")
+    const rhs = context.stack.readU32()
+    const lhs = context.stack.readU32()
     context.stack.writeI32(lhs >= rhs ? 1 : 0)
   }
 }
 
 class I32AddInstrNode extends InstrNode {
-  store(buffer:Buffer) {
-    buffer.writeByte(Op.I32Add)
-  }
-
   invoke(context:Context) {
     if (context.debug) console.warn("invoke i32.add")
     const rhs = context.stack.readI32()
     const lhs = context.stack.readI32()
     context.stack.writeI32(lhs+rhs)
+  }
+}
+
+class I32RemSInstrNode extends InstrNode {
+  invoke(context:Context) {
+    if (context.debug) console.warn("invoke i32.rem_s")
+    const rhs = context.stack.readS32()
+    const lhs = context.stack.readS32()
+    context.stack.writeS32(lhs%rhs)
   }
 }
 
@@ -842,8 +875,12 @@ const Op = {
   LocalGet: 0x20,
   LocalSet: 0x21,
   I32Const: 0x41,
+  I32Eqz: 0x45,
+  I32LtS: 0x48,
+  I32GeS: 0x4e,
   I32GeU: 0x4f,
   I32Add: 0x6a,
+  I32RemS: 0x6f,
   End: 0x0b,
 } as const
 type Op = typeof Op[keyof typeof Op]; 

@@ -66,49 +66,32 @@ export class Buffer {
   }
 
   readU32(): number{
-    let num = 0
-    let fig = 0
+    let result = 0;
+    let shift = 0;
     while (true) {
-      if (4 < fig) throw new Error("invalid u32")
-
-      const b = this.readByte()
-      num = num | ((b & 0b01111111) << (7*fig))
-      if ((b & 0b10000000) === 0) break
-      fig++
+      const byte = this.readByte()
+      result |= (byte & 0b01111111) << shift;
+      shift += 7;
+      if ((0b10000000 & byte) === 0) {
+        return result;
+      }
     }
-    if (0xffffffff < num) {
-      throw "too large"
-    }
-    return num
   }
 
-  readS32(): number{
-    let num = 0
-    let rnum = 0
-    let fig = 0
-    let negative = false
+  readS32(): number {
+    // https://en.wikipedia.org/wiki/LEB128#Decode_signed_32-bit_integer
+    let result = 0;
+    let shift = 0;
     while (true) {
-      if (4 < fig) throw new Error("invalid s32")
-
-      const b = this.readByte()
-      num = num | ((b & 0b01111111) << (7*fig))
-      rnum = rnum | (((b ^ 0b11111111) & 0b01111111) << (7*fig))
-      if ((b & 0b10000000) === 0) {
-        negative = (b & 0b01000000) > 0
-        break
+      const byte = this.readByte()
+      result |= (byte & 0b01111111) << shift;
+      shift += 7;
+      if ((0b10000000 & byte) === 0) {
+        if (shift < 32 && (byte & 0b01000000) !== 0) {
+          return result | (~0 << shift);
+        }
+        return result;
       }
-      fig++
-    }
-    if (negative) {
-      if (0xffffffff < rnum) {
-        throw "too large"
-      }
-      return -(rnum+1)
-    } else {
-      if (0xffffffff < num) {
-        throw "too large"
-      }
-      return num
     }
   }
 
@@ -142,50 +125,39 @@ export class Buffer {
     this.#view.setUint8(this.#cursor++, byte)
   }
 
-  writeU32(num:number) {
-    if (num === 0) {
-      this.writeByte(0)
-      return
-    }
-
-    const bytes = []
+  writeU32(value:number) {
+    value |= 0
+    const result = []
     while (true) {
-      let low = num & 0b01111111
-      num = num >> 7
-      //if (num === 0) {
-      if (num === 0 && (low & 0b01000000) === 0) {
-        bytes.push(low)
+      const byte = value & 0b01111111;
+      value >>= 7
+      if (value === 0 && (byte & 0b01000000) === 0) {
+        result.push(byte)
         break
-      } else {
-        low = low | 0b10000000
-        bytes.push(low)
       }
+      result.push(byte | 0b10000000)
     }
-    const u8a = new Uint8Array(bytes)
+    const u8a = new Uint8Array(result)
     this.writeBytes(u8a.buffer)
   }
 
-  writeS32(num:number) {
-    if (0 <= num) {
-      this.writeU32(num)
-      return
-    }
-
-    // negative
-    const bytes = []
-    num = -(num+1)
+  writeS32(value:number) {
+    // https://en.wikipedia.org/wiki/LEB128#Encode_signed_32-bit_integer
+    value |= 0
+    const result = []
     while (true) {
-      let low = (num & 0b01111111) ^ 0b01111111
-      num = num >> 7
-      if (num === 0) {
-        bytes.push(low)
+      const byte = value & 0b01111111;
+      value >>= 7
+      if (
+        (value === 0 && (byte & 0b01000000) === 0) ||
+        (value === -1 && (byte & 0b01000000) !== 0)
+      ) {
+        result.push(byte)
         break
-      } else {
-        low = low | 0b10000000
-        bytes.push(low)
       }
+      result.push(byte | 0b10000000)
     }
-    const u8a = new Uint8Array(bytes)
+    const u8a = new Uint8Array(result)
     this.writeBytes(u8a.buffer)
   }
 

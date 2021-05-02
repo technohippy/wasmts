@@ -100,6 +100,7 @@ Deno.test("invoke add.wasm", async () => {
   const inst = mod.instantiate()
   assertEquals(3, inst.exports.add(1, 2))
   assertEquals(0, inst.exports.add(42, -42))
+  assertEquals(-100, inst.exports.add(0, -100))
   assertEquals(1000, inst.exports.add(999, 1))
   assertEquals(10000, inst.exports.add(9999, 1))
 })
