@@ -217,11 +217,8 @@ class Instructions extends Instruction {
 }
 
 class NopInstruction extends Instruction {
-  #node: NopInstrNode
-
   constructor(node:NopInstrNode, parent?:Instruction) {
     super(parent)
-    this.#node = node
   }
 
   invoke(context:Context):Instruction | undefined {
@@ -230,12 +227,10 @@ class NopInstruction extends Instruction {
 }
 
 class BlockInstruction extends Instruction {
-  #node: BlockInstrNode
   #instructions: Instructions
 
   constructor(node:BlockInstrNode, parent?:Instruction) {
     super(parent)
-    this.#node = node
     this.#instructions = new Instructions(node.instrs.instrs, this)
   }
 
@@ -250,12 +245,10 @@ class BlockInstruction extends Instruction {
 }
 
 class LoopInstruction extends Instruction {
-  #node: LoopInstrNode
   #instructions: Instructions
 
   constructor(node:LoopInstrNode, parent?:Instruction) {
     super(parent)
-    this.#node = node
     this.#instructions = new Instructions(node.instrs.instrs, this)
   }
 
@@ -270,13 +263,11 @@ class LoopInstruction extends Instruction {
 }
 
 class IfInstruction extends Instruction {
-  #node: IfInstrNode
   #thenInstructions: Instructions
   #elseInstructions: Instructions
 
   constructor(node:IfInstrNode, parent?:Instruction) {
     super(parent)
-    this.#node = node
     this.#thenInstructions = new Instructions(node.thenInstrs.instrs)
     this.#elseInstructions = new Instructions(node.elseInstrs?.instrs)
   }
@@ -294,12 +285,10 @@ class IfInstruction extends Instruction {
 }
 
 class BrInstruction extends Instruction {
-  #node: BrInstrNode
   #labelIdx: number
 
   constructor(node:BrInstrNode, parent?:Instruction) {
     super(parent)
-    this.#node = node
     this.#labelIdx = node.labelIdx
   }
 
@@ -322,12 +311,10 @@ class BrInstruction extends Instruction {
 }
 
 class BrIfInstruction extends Instruction {
-  #node: BrIfInstrNode
   #labelIdx: number
 
   constructor(node:BrIfInstrNode, parent?:Instruction) {
     super(parent)
-    this.#node = node
     this.#labelIdx = node.labelIdx
   }
 
@@ -355,12 +342,10 @@ class BrIfInstruction extends Instruction {
 }
 
 class CallInstruction extends Instruction {
-  #node: CallInstrNode
   #funcIdx: number
 
   constructor(node:CallInstrNode, parent?:Instruction) {
     super(parent)
-    this.#node = node
     this.#funcIdx = node.funcIdx
   }
 
@@ -376,12 +361,10 @@ class CallInstruction extends Instruction {
 }
 
 class I32ConstInstruction extends Instruction {
-  #node: I32ConstInstrNode
   #num: number
 
   constructor(node:I32ConstInstrNode, parent?:Instruction) {
     super(parent)
-    this.#node = node
     this.#num = node.num
   }
 
@@ -393,11 +376,8 @@ class I32ConstInstruction extends Instruction {
 }
 
 class I32EqzInstruction extends Instruction {
-  #node: I32EqzInstrNode
-
   constructor(node:I32EqzInstrNode, parent?:Instruction) {
     super(parent)
-    this.#node = node
   }
 
   invoke(context:Context):Instruction | undefined {
@@ -409,11 +389,8 @@ class I32EqzInstruction extends Instruction {
 }
 
 class I32LtSInstruction extends Instruction {
-  #node: I32LtSInstrNode
-
   constructor(node:I32LtSInstrNode, parent?:Instruction) {
     super(parent)
-    this.#node = node
   }
 
   invoke(context:Context):Instruction | undefined {
@@ -426,11 +403,8 @@ class I32LtSInstruction extends Instruction {
 }
 
 class I32GeSInstruction extends Instruction {
-  #node: I32GeSInstrNode
-
   constructor(node:I32GeSInstrNode, parent?:Instruction) {
     super(parent)
-    this.#node = node
   }
 
   invoke(context:Context):Instruction | undefined {
@@ -443,11 +417,8 @@ class I32GeSInstruction extends Instruction {
 }
 
 class I32GeUInstruction extends Instruction {
-  #node: I32GeUInstrNode
-
   constructor(node:I32GeUInstrNode, parent?:Instruction) {
     super(parent)
-    this.#node = node
   }
 
   invoke(context:Context):Instruction | undefined {
@@ -460,11 +431,8 @@ class I32GeUInstruction extends Instruction {
 }
 
 class I32AddInstruction extends Instruction {
-  #node: I32AddInstrNode
-
   constructor(node:I32AddInstrNode, parent?:Instruction) {
     super(parent)
-    this.#node = node
   }
 
   invoke(context:Context):Instruction | undefined {
@@ -477,11 +445,8 @@ class I32AddInstruction extends Instruction {
 }
 
 class I32RemSInstruction extends Instruction {
-  #node: I32RemSInstrNode
-
   constructor(node:I32RemSInstrNode, parent?:Instruction) {
     super(parent)
-    this.#node = node
   }
 
   invoke(context:Context):Instruction | undefined {
@@ -494,12 +459,10 @@ class I32RemSInstruction extends Instruction {
 }
 
 class LocalGetInstruction extends Instruction {
-  #node: LocalGetInstrNode
   #localIdx: number
 
   constructor(node:LocalGetInstrNode, parent?:Instruction) {
     super(parent)
-    this.#node = node
     this.#localIdx = node.localIdx
   }
 
@@ -512,12 +475,10 @@ class LocalGetInstruction extends Instruction {
 }
 
 class LocalSetInstruction extends Instruction {
-  #node: LocalSetInstrNode
   #localIdx: number
 
   constructor(node:LocalSetInstrNode, parent?:Instruction) {
     super(parent)
-    this.#node = node
     this.#localIdx = node.localIdx
   }
 
@@ -528,7 +489,6 @@ class LocalSetInstruction extends Instruction {
     return this.next
   }
 }
-
 
 // TODO: データはBufferで保持して、get/setで型を意識したほうがいいかも
 class LocalValue {
