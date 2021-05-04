@@ -67,21 +67,12 @@ export class Instance {
 class WasmFunction {
   #funcType:FuncTypeNode
   #code:CodeNode
-  #instructions:Instruction[]
+  #instructions:Instructions
 
   constructor(funcType:FuncTypeNode, code:CodeNode) {
     this.#funcType = funcType
     this.#code = code
-    this.#instructions = []
-
-    const instrNodes = this.#code.func?.expr?.instrs || []
-    for (const node of instrNodes) {
-      const instr = Instruction.create(node)
-      if (0 < this.#instructions.length) {
-        this.#instructions[this.#instructions.length-1].next = instr
-      }
-      this.#instructions.push(instr)
-    }
+    this.#instructions = new Instructions(this.#code.func?.expr?.instrs)
   }
 
   invoke(context:Context, ...args:number[]) {
@@ -110,12 +101,9 @@ class WasmFunction {
     }
 
     // invoke
-    const instrs = this.#code.func?.expr?.instrs || []
-    for (const instr of instrs) {
-      instr.invoke(context)
-      if (0 <= context.branch) {
-        break
-      }
+    let instr = this.#instructions.top
+    while (instr) {
+      instr = instr.invoke(context)
     }
 
     const resultTypes = this.#funcType.resultType.valTypes
@@ -139,16 +127,19 @@ class WasmFunction {
     }
   }
 }
-
 class Instruction {
   parent?: Instruction
   #next?: Instruction
 
-  get next():Instruction {
-    return this.#next!
+  get next():Instruction | undefined {
+    if (this.#next) {
+      return this.#next
+    } else {
+      return this.parent?.next
+    }
   }
 
-  set next(instr:Instruction) {
+  set next(instr:Instruction | undefined) {
     this.#next = instr
   }
 
@@ -199,6 +190,32 @@ class Instruction {
   }
 }
 
+class Instructions extends Instruction {
+  #instructions:Instruction[] = []
+
+  get top():Instruction | undefined {
+    return this.#instructions[0]
+  }
+
+  constructor(nodes:InstrNode[]=[], parent?:Instruction) {
+    super()
+
+    if (nodes.length === 0) return
+
+    let prev = Instruction.create(nodes[0], parent)
+    this.#instructions.push(prev)
+    for (let i = 1; i < nodes.length; i++) {
+      prev.next = Instruction.create(nodes[i], parent)
+      this.#instructions.push(prev)
+      prev = prev.next
+    }
+  }
+
+  invoke(context:Context): Instruction | undefined {
+    return this.top
+  }
+}
+
 class NopInstruction extends Instruction {
   #node: NopInstrNode
 
@@ -215,79 +232,120 @@ class NopInstruction extends Instruction {
 
 class BlockInstruction extends Instruction {
   #node: BlockInstrNode
-  #instructions: Instruction[]
+  #instructions: Instructions
 
   constructor(node:BlockInstrNode, parent?:Instruction) {
     super(parent)
     this.#node = node
-    this.#instructions = (node.instrs.instrs || []).map(node => Instruction.create(node, this))
+    this.#instructions = new Instructions(node.instrs.instrs, this)
   }
 
   invoke(context:Context):Instruction | undefined {
-    this.#node.invoke(context)
+    return this.#instructions.top
+  }
+
+  jumpIn(): Instruction | undefined {
     return this.next
   }
 }
 
 class LoopInstruction extends Instruction {
   #node: LoopInstrNode
-  #instructions: Instruction[]
+  #instructions: Instructions
 
   constructor(node:LoopInstrNode, parent?:Instruction) {
     super(parent)
     this.#node = node
-    this.#instructions = (node.instrs.instrs || []).map(node => Instruction.create(node, this))
+    this.#instructions = new Instructions(node.instrs.instrs, this)
   }
 
   invoke(context:Context):Instruction | undefined {
-    this.#node.invoke(context)
-    return this.next
+    return this.#instructions.top
+  }
+
+  jumpIn(): Instruction | undefined {
+    return this.#instructions.top
   }
 }
 
 class IfInstruction extends Instruction {
   #node: IfInstrNode
-  #thenInstructions: Instruction[]
-  #elseInstructions: Instruction[]
+  #thenInstructions: Instructions
+  #elseInstructions: Instructions
 
   constructor(node:IfInstrNode, parent?:Instruction) {
     super(parent)
     this.#node = node
-    this.#thenInstructions = (node.thenInstrs.instrs || []).map(node => Instruction.create(node, this))
-    this.#elseInstructions = (node.elseInstrs?.instrs || []).map(node => Instruction.create(node, this))
+    this.#thenInstructions = new Instructions(node.thenInstrs.instrs)
+    this.#elseInstructions = new Instructions(node.elseInstrs?.instrs)
   }
 
   invoke(context:Context):Instruction | undefined {
-    this.#node.invoke(context)
-    return this.next
+    if (context.debug) console.warn("invoke if")
+
+    const cond = context.stack.readI32()
+    if (cond !== 0) {
+      return this.#thenInstructions
+    } else {
+      return this.#elseInstructions
+    }
   }
 }
 
 class BrInstruction extends Instruction {
   #node: BrInstrNode
+  #labelIdx: number
 
   constructor(node:BrInstrNode, parent?:Instruction) {
     super(parent)
     this.#node = node
+    this.#labelIdx = node.labelIdx
   }
 
   invoke(context:Context):Instruction | undefined {
-    this.#node.invoke(context)
-    return this.next
+    let label = 0
+    let parent = this.parent
+    while (parent) {
+      if (parent instanceof BlockInstruction || parent instanceof LoopInstruction) {
+        if (label === this.#labelIdx) {
+          return parent.jumpIn()
+        }
+        label++
+      }
+      parent = parent.parent
+    }
+    throw new Error(`branch error: ${this.#labelIdx} ${label}`)
   }
 }
 
 class BrIfInstruction extends Instruction {
   #node: BrIfInstrNode
+  #labelIdx: number
 
   constructor(node:BrIfInstrNode, parent?:Instruction) {
     super(parent)
     this.#node = node
+    this.#labelIdx = node.labelIdx
   }
 
   invoke(context:Context):Instruction | undefined {
-    this.#node.invoke(context)
-    return this.next
+    const cond = context.stack.readI32()
+    if (cond === 0) {
+      return this.next
+    }
+
+    let label = 0
+    let parent = this.parent
+    while (parent) {
+      if (parent instanceof BlockInstruction || parent instanceof LoopInstruction) {
+        if (label === this.#labelIdx) {
+          return parent.jumpIn()
+        }
+        label++
+      }
+      parent = parent.parent
+    }
+    throw new Error(`conditional branch error: ${this.#labelIdx} ${label}`)
   }
 }
 

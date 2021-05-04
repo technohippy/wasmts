@@ -633,6 +633,7 @@ export class IfInstrNode extends InstrNode {
   }
 
   invoke(context:Context) {
+    /*
     if (context.debug) console.warn("invoke if")
 
     const cond = context.stack.readI32()
@@ -643,6 +644,7 @@ export class IfInstrNode extends InstrNode {
       // TODO: brとかreturnとか
       this.elseInstrs?.invoke(context)
     }
+    */
   }
 }
 
