@@ -472,12 +472,6 @@ class ExprNode {
     }
     buffer.writeByte(this.endOp)
   }
-
-  invoke(context:Context) {
-    for (const instr of this.instrs) {
-      instr.invoke(context)
-    }
-  }
 }
 
 export class InstrNode {
@@ -518,10 +512,6 @@ export class InstrNode {
   store(buffer:Buffer) {
     buffer.writeByte(this.opcode)
   }
-
-  invoke(context:Context) {
-    throw new Error(`subclass responsibility: ${this.constructor.name}`)
-  }
 }
 
 export class BlockInstrNode extends InstrNode {
@@ -543,26 +533,6 @@ export class BlockInstrNode extends InstrNode {
     buffer.writeByte(this.blockType)
     this.instrs.store(buffer)
   }
-
-  invoke(context:Context) {
-    if (context.debug) console.warn("invoke block")
-
-    let br = false
-    while (true) {
-      context.depth += 1
-      context.branch -= 1
-      for (const instr of this.instrs.instrs) {
-        instr.invoke(context)
-        if (0 <= context.branch) {
-          context.branch -= 1
-          br = true
-          break
-        }
-      }
-      context.depth -= 1
-      if (br) break
-    }
-  }
 }
 
 export class LoopInstrNode extends InstrNode {
@@ -583,26 +553,6 @@ export class LoopInstrNode extends InstrNode {
     super.store(buffer)
     buffer.writeByte(this.blockType)
     this.instrs.store(buffer)
-  }
-
-  invoke(context:Context) {
-    if (context.debug) console.warn("invoke loop")
-
-    let br = false
-    while (true) {
-      context.depth += 1
-      context.branch -= 1
-      for (const instr of this.instrs.instrs) {
-        instr.invoke(context)
-        if (0 <= context.branch) {
-          context.branch -= 1
-          br = true
-          break
-        }
-      }
-      context.depth -= 1
-      if (br) break
-    }
   }
 }
 
@@ -631,21 +581,6 @@ export class IfInstrNode extends InstrNode {
     this.thenInstrs.store(buffer)
     this.elseInstrs?.store(buffer)
   }
-
-  invoke(context:Context) {
-    /*
-    if (context.debug) console.warn("invoke if")
-
-    const cond = context.stack.readI32()
-    if (cond !== 0) {
-      // TODO: brとかreturnとか
-      this.thenInstrs.invoke(context)
-    } else {
-      // TODO: brとかreturnとか
-      this.elseInstrs?.invoke(context)
-    }
-    */
-  }
 }
 
 export class BrInstrNode extends InstrNode {
@@ -662,11 +597,6 @@ export class BrInstrNode extends InstrNode {
 
     super.store(buffer)
     buffer.writeU32(this.labelIdx)
-  }
-  
-  invoke(context:Context) {
-    if (context.debug) console.warn("invoke br")
-    context.branch = this.labelIdx
   }
 }
 
@@ -685,14 +615,6 @@ export class BrIfInstrNode extends InstrNode {
     super.store(buffer)
     buffer.writeU32(this.labelIdx)
   }
-  
-  invoke(context:Context) {
-    if (context.debug) console.warn("invoke br_if")
-    const cond = context.stack.readI32()
-    if (cond !== 0) {
-      context.branch = this.labelIdx
-    }
-  }
 }
 
 export class CallInstrNode extends InstrNode {
@@ -710,19 +632,9 @@ export class CallInstrNode extends InstrNode {
     super.store(buffer)
     buffer.writeU32(this.funcIdx)
   }
-
-  invoke(context:Context) {
-    if (context.debug) console.warn("invoke call")
-    const func = context.functions[this.funcIdx]
-    const result = func.invoke(context)
-    if (result) {
-      context.stack.writeI32(result) // TODO: type
-    }
-  }
 }
 
 export class NopInstrNode extends InstrNode {
-
 }
 
 export class LocalGetInstrNode extends InstrNode {
@@ -739,12 +651,6 @@ export class LocalGetInstrNode extends InstrNode {
 
     super.store(buffer)
     buffer.writeU32(this.localIdx)
-  }
-
-  invoke(context:Context) {
-    if (context.debug) console.warn("invoke local.get")
-    const local = context.locals[this.localIdx]
-    local.store(context.stack)
   }
 }
 
@@ -763,12 +669,6 @@ export class LocalSetInstrNode extends InstrNode {
     super.store(buffer)
     buffer.writeU32(this.localIdx)
   }
-
-  invoke(context:Context) {
-    if (context.debug) console.warn("invoke local.set")
-    const local = context.locals[this.localIdx]
-    local.load(context.stack)
-  }
 }
 
 export class I32ConstInstrNode extends InstrNode {
@@ -785,64 +685,24 @@ export class I32ConstInstrNode extends InstrNode {
     super.store(buffer)
     buffer.writeI32(this.num)
   }
-
-  invoke(context:Context) {
-    if (context.debug) console.warn("invoke i32.const")
-    context.stack.writeI32(this.num)
-  }
 }
 
 export class I32EqzInstrNode extends InstrNode {
-  invoke(context:Context) {
-    if (context.debug) console.warn("invoke i32.eqz")
-    const num = context.stack.readS32()
-    context.stack.writeI32(num === 0 ? 1 : 0)
-  }
 }
 
 export class I32LtSInstrNode extends InstrNode {
-  invoke(context:Context) {
-    if (context.debug) console.warn("invoke i32.lt_s")
-    const rhs = context.stack.readS32()
-    const lhs = context.stack.readS32()
-    context.stack.writeI32(lhs < rhs ? 1 : 0)
-  }
 }
 
 export class I32GeSInstrNode extends InstrNode {
-  invoke(context:Context) {
-    if (context.debug) console.warn("invoke i32.ge_s")
-    const rhs = context.stack.readS32()
-    const lhs = context.stack.readS32()
-    context.stack.writeI32(lhs >= rhs ? 1 : 0)
-  }
 }
 
 export class I32GeUInstrNode extends InstrNode {
-  invoke(context:Context) {
-    if (context.debug) console.warn("invoke i32.ge_u")
-    const rhs = context.stack.readU32()
-    const lhs = context.stack.readU32()
-    context.stack.writeI32(lhs >= rhs ? 1 : 0)
-  }
 }
 
 export class I32AddInstrNode extends InstrNode {
-  invoke(context:Context) {
-    if (context.debug) console.warn("invoke i32.add")
-    const rhs = context.stack.readI32()
-    const lhs = context.stack.readI32()
-    context.stack.writeI32(lhs+rhs)
-  }
 }
 
 export class I32RemSInstrNode extends InstrNode {
-  invoke(context:Context) {
-    if (context.debug) console.warn("invoke i32.rem_s")
-    const rhs = context.stack.readS32()
-    const lhs = context.stack.readS32()
-    context.stack.writeS32(lhs%rhs)
-  }
 }
 
 type TypeIdx = number

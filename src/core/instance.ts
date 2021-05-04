@@ -225,7 +225,6 @@ class NopInstruction extends Instruction {
   }
 
   invoke(context:Context):Instruction | undefined {
-    this.#node.invoke(context)
     return this.next
   }
 }
@@ -241,6 +240,7 @@ class BlockInstruction extends Instruction {
   }
 
   invoke(context:Context):Instruction | undefined {
+    if (context.debug) console.warn("invoke block")
     return this.#instructions.top
   }
 
@@ -260,6 +260,7 @@ class LoopInstruction extends Instruction {
   }
 
   invoke(context:Context):Instruction | undefined {
+    if (context.debug) console.warn("invoke loop")
     return this.#instructions.top
   }
 
@@ -303,6 +304,8 @@ class BrInstruction extends Instruction {
   }
 
   invoke(context:Context):Instruction | undefined {
+    if (context.debug) console.warn("invoke br")
+
     let label = 0
     let parent = this.parent
     while (parent) {
@@ -329,6 +332,8 @@ class BrIfInstruction extends Instruction {
   }
 
   invoke(context:Context):Instruction | undefined {
+    if (context.debug) console.warn("invoke br_if")
+
     const cond = context.stack.readI32()
     if (cond === 0) {
       return this.next
@@ -351,28 +356,38 @@ class BrIfInstruction extends Instruction {
 
 class CallInstruction extends Instruction {
   #node: CallInstrNode
+  #funcIdx: number
 
   constructor(node:CallInstrNode, parent?:Instruction) {
     super(parent)
     this.#node = node
+    this.#funcIdx = node.funcIdx
   }
 
   invoke(context:Context):Instruction | undefined {
-    this.#node.invoke(context)
+    if (context.debug) console.warn("invoke call")
+    const func = context.functions[this.#funcIdx]
+    const result = func.invoke(context)
+    if (result) {
+      context.stack.writeI32(result) // TODO: type
+    }
     return this.next
   }
 }
 
 class I32ConstInstruction extends Instruction {
   #node: I32ConstInstrNode
+  #num: number
 
   constructor(node:I32ConstInstrNode, parent?:Instruction) {
     super(parent)
     this.#node = node
+    this.#num = node.num
   }
 
   invoke(context:Context):Instruction | undefined {
-    this.#node.invoke(context)
+    if (context.debug) console.warn("invoke i32.const")
+    context.stack.writeI32(this.#num)
     return this.next
   }
 }
@@ -386,7 +401,9 @@ class I32EqzInstruction extends Instruction {
   }
 
   invoke(context:Context):Instruction | undefined {
-    this.#node.invoke(context)
+    if (context.debug) console.warn("invoke i32.eqz")
+    const num = context.stack.readS32()
+    context.stack.writeI32(num === 0 ? 1 : 0)
     return this.next
   }
 }
@@ -400,7 +417,10 @@ class I32LtSInstruction extends Instruction {
   }
 
   invoke(context:Context):Instruction | undefined {
-    this.#node.invoke(context)
+    if (context.debug) console.warn("invoke i32.lt_s")
+    const rhs = context.stack.readS32()
+    const lhs = context.stack.readS32()
+    context.stack.writeI32(lhs < rhs ? 1 : 0)
     return this.next
   }
 }
@@ -414,7 +434,10 @@ class I32GeSInstruction extends Instruction {
   }
 
   invoke(context:Context):Instruction | undefined {
-    this.#node.invoke(context)
+    if (context.debug) console.warn("invoke i32.ge_s")
+    const rhs = context.stack.readS32()
+    const lhs = context.stack.readS32()
+    context.stack.writeI32(lhs >= rhs ? 1 : 0)
     return this.next
   }
 }
@@ -428,7 +451,10 @@ class I32GeUInstruction extends Instruction {
   }
 
   invoke(context:Context):Instruction | undefined {
-    this.#node.invoke(context)
+    if (context.debug) console.warn("invoke i32.ge_u")
+    const rhs = context.stack.readU32()
+    const lhs = context.stack.readU32()
+    context.stack.writeI32(lhs >= rhs ? 1 : 0)
     return this.next
   }
 }
@@ -442,7 +468,10 @@ class I32AddInstruction extends Instruction {
   }
 
   invoke(context:Context):Instruction | undefined {
-    this.#node.invoke(context)
+    if (context.debug) console.warn("invoke i32.add")
+    const rhs = context.stack.readI32()
+    const lhs = context.stack.readI32()
+    context.stack.writeI32(lhs+rhs)
     return this.next
   }
 }
@@ -456,35 +485,46 @@ class I32RemSInstruction extends Instruction {
   }
 
   invoke(context:Context):Instruction | undefined {
-    this.#node.invoke(context)
+    if (context.debug) console.warn("invoke i32.rem_s")
+    const rhs = context.stack.readS32()
+    const lhs = context.stack.readS32()
+    context.stack.writeS32(lhs%rhs)
     return this.next
   }
 }
 
 class LocalGetInstruction extends Instruction {
   #node: LocalGetInstrNode
+  #localIdx: number
 
   constructor(node:LocalGetInstrNode, parent?:Instruction) {
     super(parent)
     this.#node = node
+    this.#localIdx = node.localIdx
   }
 
   invoke(context:Context):Instruction | undefined {
-    this.#node.invoke(context)
+    if (context.debug) console.warn("invoke local.get")
+    const local = context.locals[this.#localIdx]
+    local.store(context.stack)
     return this.next
   }
 }
 
 class LocalSetInstruction extends Instruction {
   #node: LocalSetInstrNode
+  #localIdx: number
 
   constructor(node:LocalSetInstrNode, parent?:Instruction) {
     super(parent)
     this.#node = node
+    this.#localIdx = node.localIdx
   }
 
   invoke(context:Context):Instruction | undefined {
-    this.#node.invoke(context)
+    if (context.debug) console.warn("invoke local.set")
+    const local = context.locals[this.#localIdx]
+    local.load(context.stack)
     return this.next
   }
 }
@@ -556,8 +596,6 @@ export class Context {
   stack:Buffer
   functions:WasmFunction[]
   locals:LocalValue[]
-  branch:number
-  depth:number
 
   debug:boolean = false
 
@@ -570,8 +608,6 @@ export class Context {
     this.globals = []
     */
     this.locals = []
-    this.branch = -1
-    this.depth = 0
   }
 
   clearStack() {
