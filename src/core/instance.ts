@@ -1,4 +1,10 @@
-import { ModuleNode, FuncTypeNode, CodeNode } from "./node.ts"
+import { 
+  ModuleNode, FuncTypeNode, CodeNode, InstrNode, NopInstrNode, 
+  BlockInstrNode, LoopInstrNode, IfInstrNode, BrInstrNode, 
+  BrIfInstrNode, CallInstrNode, I32ConstInstrNode, I32EqzInstrNode, 
+  I32LtSInstrNode, I32GeSInstrNode, I32GeUInstrNode, I32AddInstrNode, 
+  I32RemSInstrNode, LocalGetInstrNode, LocalSetInstrNode,
+} from "./node.ts"
 import { Buffer, StackBuffer } from "./buffer.ts"
 
 export class Instance {
@@ -61,10 +67,21 @@ export class Instance {
 class WasmFunction {
   #funcType:FuncTypeNode
   #code:CodeNode
+  #instructions:Instruction[]
 
   constructor(funcType:FuncTypeNode, code:CodeNode) {
     this.#funcType = funcType
     this.#code = code
+    this.#instructions = []
+
+    const instrNodes = this.#code.func?.expr?.instrs || []
+    for (const node of instrNodes) {
+      const instr = Instruction.create(node)
+      if (0 < this.#instructions.length) {
+        this.#instructions[this.#instructions.length-1].next = instr
+      }
+      this.#instructions.push(instr)
+    }
   }
 
   invoke(context:Context, ...args:number[]) {
@@ -122,6 +139,298 @@ class WasmFunction {
     }
   }
 }
+
+class Instruction {
+  parent?: Instruction
+  #next?: Instruction
+
+  get next():Instruction {
+    return this.#next!
+  }
+
+  set next(instr:Instruction) {
+    this.#next = instr
+  }
+
+  constructor(parent?:Instruction) {
+    this.parent = parent
+  }
+
+  static create(node:InstrNode, parent?:Instruction):Instruction {
+    if (node instanceof NopInstrNode) {
+      return new NopInstruction(node, parent)
+    } else if (node instanceof BlockInstrNode) {
+      return new BlockInstruction(node, parent)
+    } else if (node instanceof LoopInstrNode) {
+      return new LoopInstruction(node, parent)
+    } else if (node instanceof IfInstrNode) {
+      return new IfInstruction(node, parent)
+    } else if (node instanceof BrInstrNode) {
+      return new BrInstruction(node, parent)
+    } else if (node instanceof BrIfInstrNode) {
+      return new BrIfInstruction(node, parent)
+    } else if (node instanceof CallInstrNode) {
+      return new CallInstruction(node, parent)
+    } else if (node instanceof I32ConstInstrNode) {
+      return new I32ConstInstruction(node, parent)
+    } else if (node instanceof I32EqzInstrNode) {
+      return new I32EqzInstruction(node, parent)
+    } else if (node instanceof I32LtSInstrNode) {
+      return new I32LtSInstruction(node, parent)
+    } else if (node instanceof I32GeSInstrNode) {
+      return new I32GeSInstruction(node, parent)
+    } else if (node instanceof I32GeUInstrNode) {
+      return new I32GeUInstruction(node, parent)
+    } else if (node instanceof I32AddInstrNode) {
+      return new I32AddInstruction(node, parent)
+    } else if (node instanceof I32RemSInstrNode) {
+      return new I32RemSInstruction(node, parent)
+    } else if (node instanceof LocalGetInstrNode) {
+      return new LocalGetInstruction(node, parent)
+    } else if (node instanceof LocalSetInstrNode) {
+      return new LocalSetInstruction(node, parent)
+    } else {
+      throw new Error(`invalid node: ${node.constructor.name}`)
+    }
+  }
+
+  invoke(context:Context):Instruction | undefined {
+    throw new Error(`subclass responsibility; ${this.constructor.name}`)
+  }
+}
+
+class NopInstruction extends Instruction {
+  #node: NopInstrNode
+
+  constructor(node:NopInstrNode, parent?:Instruction) {
+    super(parent)
+    this.#node = node
+  }
+
+  invoke(context:Context):Instruction | undefined {
+    this.#node.invoke(context)
+    return this.next
+  }
+}
+
+class BlockInstruction extends Instruction {
+  #node: BlockInstrNode
+  #instructions: Instruction[]
+
+  constructor(node:BlockInstrNode, parent?:Instruction) {
+    super(parent)
+    this.#node = node
+    this.#instructions = (node.instrs.instrs || []).map(node => Instruction.create(node, this))
+  }
+
+  invoke(context:Context):Instruction | undefined {
+    this.#node.invoke(context)
+    return this.next
+  }
+}
+
+class LoopInstruction extends Instruction {
+  #node: LoopInstrNode
+  #instructions: Instruction[]
+
+  constructor(node:LoopInstrNode, parent?:Instruction) {
+    super(parent)
+    this.#node = node
+    this.#instructions = (node.instrs.instrs || []).map(node => Instruction.create(node, this))
+  }
+
+  invoke(context:Context):Instruction | undefined {
+    this.#node.invoke(context)
+    return this.next
+  }
+}
+
+class IfInstruction extends Instruction {
+  #node: IfInstrNode
+  #thenInstructions: Instruction[]
+  #elseInstructions: Instruction[]
+
+  constructor(node:IfInstrNode, parent?:Instruction) {
+    super(parent)
+    this.#node = node
+    this.#thenInstructions = (node.thenInstrs.instrs || []).map(node => Instruction.create(node, this))
+    this.#elseInstructions = (node.elseInstrs?.instrs || []).map(node => Instruction.create(node, this))
+  }
+
+  invoke(context:Context):Instruction | undefined {
+    this.#node.invoke(context)
+    return this.next
+  }
+}
+
+class BrInstruction extends Instruction {
+  #node: BrInstrNode
+
+  constructor(node:BrInstrNode, parent?:Instruction) {
+    super(parent)
+    this.#node = node
+  }
+
+  invoke(context:Context):Instruction | undefined {
+    this.#node.invoke(context)
+    return this.next
+  }
+}
+
+class BrIfInstruction extends Instruction {
+  #node: BrIfInstrNode
+
+  constructor(node:BrIfInstrNode, parent?:Instruction) {
+    super(parent)
+    this.#node = node
+  }
+
+  invoke(context:Context):Instruction | undefined {
+    this.#node.invoke(context)
+    return this.next
+  }
+}
+
+class CallInstruction extends Instruction {
+  #node: CallInstrNode
+
+  constructor(node:CallInstrNode, parent?:Instruction) {
+    super(parent)
+    this.#node = node
+  }
+
+  invoke(context:Context):Instruction | undefined {
+    this.#node.invoke(context)
+    return this.next
+  }
+}
+
+class I32ConstInstruction extends Instruction {
+  #node: I32ConstInstrNode
+
+  constructor(node:I32ConstInstrNode, parent?:Instruction) {
+    super(parent)
+    this.#node = node
+  }
+
+  invoke(context:Context):Instruction | undefined {
+    this.#node.invoke(context)
+    return this.next
+  }
+}
+
+class I32EqzInstruction extends Instruction {
+  #node: I32EqzInstrNode
+
+  constructor(node:I32EqzInstrNode, parent?:Instruction) {
+    super(parent)
+    this.#node = node
+  }
+
+  invoke(context:Context):Instruction | undefined {
+    this.#node.invoke(context)
+    return this.next
+  }
+}
+
+class I32LtSInstruction extends Instruction {
+  #node: I32LtSInstrNode
+
+  constructor(node:I32LtSInstrNode, parent?:Instruction) {
+    super(parent)
+    this.#node = node
+  }
+
+  invoke(context:Context):Instruction | undefined {
+    this.#node.invoke(context)
+    return this.next
+  }
+}
+
+class I32GeSInstruction extends Instruction {
+  #node: I32GeSInstrNode
+
+  constructor(node:I32GeSInstrNode, parent?:Instruction) {
+    super(parent)
+    this.#node = node
+  }
+
+  invoke(context:Context):Instruction | undefined {
+    this.#node.invoke(context)
+    return this.next
+  }
+}
+
+class I32GeUInstruction extends Instruction {
+  #node: I32GeUInstrNode
+
+  constructor(node:I32GeUInstrNode, parent?:Instruction) {
+    super(parent)
+    this.#node = node
+  }
+
+  invoke(context:Context):Instruction | undefined {
+    this.#node.invoke(context)
+    return this.next
+  }
+}
+
+class I32AddInstruction extends Instruction {
+  #node: I32AddInstrNode
+
+  constructor(node:I32AddInstrNode, parent?:Instruction) {
+    super(parent)
+    this.#node = node
+  }
+
+  invoke(context:Context):Instruction | undefined {
+    this.#node.invoke(context)
+    return this.next
+  }
+}
+
+class I32RemSInstruction extends Instruction {
+  #node: I32RemSInstrNode
+
+  constructor(node:I32RemSInstrNode, parent?:Instruction) {
+    super(parent)
+    this.#node = node
+  }
+
+  invoke(context:Context):Instruction | undefined {
+    this.#node.invoke(context)
+    return this.next
+  }
+}
+
+class LocalGetInstruction extends Instruction {
+  #node: LocalGetInstrNode
+
+  constructor(node:LocalGetInstrNode, parent?:Instruction) {
+    super(parent)
+    this.#node = node
+  }
+
+  invoke(context:Context):Instruction | undefined {
+    this.#node.invoke(context)
+    return this.next
+  }
+}
+
+class LocalSetInstruction extends Instruction {
+  #node: LocalSetInstrNode
+
+  constructor(node:LocalSetInstrNode, parent?:Instruction) {
+    super(parent)
+    this.#node = node
+  }
+
+  invoke(context:Context):Instruction | undefined {
+    this.#node.invoke(context)
+    return this.next
+  }
+}
+
 
 // TODO: データはBufferで保持して、get/setで型を意識したほうがいいかも
 class LocalValue {

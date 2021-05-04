@@ -480,7 +480,7 @@ class ExprNode {
   }
 }
 
-class InstrNode {
+export class InstrNode {
   opcode: Op
 
   static create(opcode:Op): InstrNode | undefined {
@@ -524,7 +524,7 @@ class InstrNode {
   }
 }
 
-class BlockInstrNode extends InstrNode {
+export class BlockInstrNode extends InstrNode {
   blockType!: BlockType
   instrs!: ExprNode
 
@@ -565,7 +565,7 @@ class BlockInstrNode extends InstrNode {
   }
 }
 
-class LoopInstrNode extends InstrNode {
+export class LoopInstrNode extends InstrNode {
   blockType!: BlockType
   instrs!: ExprNode
 
@@ -606,7 +606,7 @@ class LoopInstrNode extends InstrNode {
   }
 }
 
-class IfInstrNode extends InstrNode {
+export class IfInstrNode extends InstrNode {
   blockType!: BlockType
   thenInstrs!: ExprNode
   elseInstrs?: ExprNode
@@ -646,7 +646,7 @@ class IfInstrNode extends InstrNode {
   }
 }
 
-class BrInstrNode extends InstrNode {
+export class BrInstrNode extends InstrNode {
   labelIdx!: LabelIdx
 
   load(buffer:Buffer) {
@@ -668,7 +668,7 @@ class BrInstrNode extends InstrNode {
   }
 }
 
-class BrIfInstrNode extends InstrNode {
+export class BrIfInstrNode extends InstrNode {
   labelIdx!: LabelIdx
 
   load(buffer:Buffer) {
@@ -693,7 +693,7 @@ class BrIfInstrNode extends InstrNode {
   }
 }
 
-class CallInstrNode extends InstrNode {
+export class CallInstrNode extends InstrNode {
   funcIdx!: FuncIdx
 
   load(buffer:Buffer) {
@@ -719,11 +719,11 @@ class CallInstrNode extends InstrNode {
   }
 }
 
-class NopInstrNode extends InstrNode {
+export class NopInstrNode extends InstrNode {
 
 }
 
-class LocalGetInstrNode extends InstrNode {
+export class LocalGetInstrNode extends InstrNode {
   localIdx!: number
 
   load(buffer:Buffer) {
@@ -746,7 +746,7 @@ class LocalGetInstrNode extends InstrNode {
   }
 }
 
-class LocalSetInstrNode extends InstrNode {
+export class LocalSetInstrNode extends InstrNode {
   localIdx!: number
 
   load(buffer:Buffer) {
@@ -769,7 +769,7 @@ class LocalSetInstrNode extends InstrNode {
   }
 }
 
-class I32ConstInstrNode extends InstrNode {
+export class I32ConstInstrNode extends InstrNode {
   num!: number
 
   load(buffer:Buffer) {
@@ -790,7 +790,7 @@ class I32ConstInstrNode extends InstrNode {
   }
 }
 
-class I32EqzInstrNode extends InstrNode {
+export class I32EqzInstrNode extends InstrNode {
   invoke(context:Context) {
     if (context.debug) console.warn("invoke i32.eqz")
     const num = context.stack.readS32()
@@ -798,7 +798,7 @@ class I32EqzInstrNode extends InstrNode {
   }
 }
 
-class I32LtSInstrNode extends InstrNode {
+export class I32LtSInstrNode extends InstrNode {
   invoke(context:Context) {
     if (context.debug) console.warn("invoke i32.lt_s")
     const rhs = context.stack.readS32()
@@ -807,7 +807,7 @@ class I32LtSInstrNode extends InstrNode {
   }
 }
 
-class I32GeSInstrNode extends InstrNode {
+export class I32GeSInstrNode extends InstrNode {
   invoke(context:Context) {
     if (context.debug) console.warn("invoke i32.ge_s")
     const rhs = context.stack.readS32()
@@ -816,7 +816,7 @@ class I32GeSInstrNode extends InstrNode {
   }
 }
 
-class I32GeUInstrNode extends InstrNode {
+export class I32GeUInstrNode extends InstrNode {
   invoke(context:Context) {
     if (context.debug) console.warn("invoke i32.ge_u")
     const rhs = context.stack.readU32()
@@ -825,7 +825,7 @@ class I32GeUInstrNode extends InstrNode {
   }
 }
 
-class I32AddInstrNode extends InstrNode {
+export class I32AddInstrNode extends InstrNode {
   invoke(context:Context) {
     if (context.debug) console.warn("invoke i32.add")
     const rhs = context.stack.readI32()
@@ -834,7 +834,7 @@ class I32AddInstrNode extends InstrNode {
   }
 }
 
-class I32RemSInstrNode extends InstrNode {
+export class I32RemSInstrNode extends InstrNode {
   invoke(context:Context) {
     if (context.debug) console.warn("invoke i32.rem_s")
     const rhs = context.stack.readS32()

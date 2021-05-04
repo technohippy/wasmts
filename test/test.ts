@@ -131,3 +131,10 @@ Deno.test("invoke call.wasm", async () => {
   const inst = mod.instantiate()
   assertEquals(47, inst.exports.add42(5))
 })
+
+Deno.test("invoke br.wasm", async () => {
+  const [mod] = await loadModule("./test/data/wasm/br.wasm")
+  const inst = mod.instantiate()
+  assertEquals(7, inst.exports.block_br())
+  assertEquals(100, inst.exports.loop_br())
+})
