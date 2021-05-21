@@ -32,14 +32,14 @@ export class Buffer {
     return new Buffer({buffer:this.#buffer.slice(0, this.#cursor)})
   }
 
-  peep(pos:number=0): number {
+  peek(pos:number=0): number {
     return this.#view.getUint8(pos)
   }
 
   append(buffer:Buffer) {
     this.writeU32(buffer.cursor)
     for (let i = 0; i < buffer.cursor; i++) {
-      this.writeByte(buffer.peep(i))
+      this.writeByte(buffer.peek(i))
     }
   }
 
@@ -167,8 +167,9 @@ export class Buffer {
 
   writeName(name:string) {
     const encoder = new TextEncoder()
-    this.writeU32(name.length)
-    this.writeBytes(encoder.encode(name))
+    const bytes = encoder.encode(name)
+    this.writeU32(bytes.length)
+    this.writeBytes(bytes)
   }
 
   writeVec<T>(ts:T[], writeT:(t:T)=>void) {

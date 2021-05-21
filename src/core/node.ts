@@ -352,8 +352,9 @@ export class CodeNode {
 
   load(buffer:Buffer) {
     this.size = buffer.readU32()
+    const funcBuffer = buffer.readBuffer(this.size)
     this.func = new FuncNode()
-    this.func.load(buffer) // TODO: ここでsizeを使うべき？
+    this.func.load(funcBuffer)
   }
 
   store(buffer:Buffer) {
@@ -578,6 +579,7 @@ export class IfInstrNode extends InstrNode {
 
     super.store(buffer)
     buffer.writeByte(this.blockType)
+    this.thenInstrs.endOp = this.elseInstrs ? Op.Else : Op.End
     this.thenInstrs.store(buffer)
     this.elseInstrs?.store(buffer)
   }

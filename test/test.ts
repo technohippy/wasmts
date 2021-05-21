@@ -138,3 +138,16 @@ Deno.test("invoke br.wasm", async () => {
   assertEquals(7, inst.exports.block_br())
   assertEquals(100, inst.exports.loop_br())
 })
+
+Deno.test("invoke gcd.wasm", async () => {
+  const [mod] = await loadModule("./test/data/wasm/gcd.wasm")
+  const inst = mod.instantiate()
+  assertEquals(6, inst.exports.gcd(42, 12))
+  assertEquals(14, inst.exports.gcd(42, 28))
+})
+/*
+const wasmCode = await Deno.readFile("test/data/wasm/gcd.wasm")
+const wasmModule = new WebAssembly.Module(wasmCode)
+const wasmInstance = new WebAssembly.Instance(wasmModule)
+const gcd = wasmInstance.exports.gcd
+*/
