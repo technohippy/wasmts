@@ -1,9 +1,15 @@
 # TODO
 
 - importObject対応
-- Global対応
-- Memory対応
-- Table対応
+  - v 関数
+  - Global
+  - Memory
+  - Table
+- セクション
+  - Start
+  - Element
+  - DataCount
+  - Data
 - データ型追加
   - i64
   - f32
