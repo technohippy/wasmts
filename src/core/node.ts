@@ -175,11 +175,23 @@ class TypeSectionNode extends SectionNode {
 }
 
 class ImportSectionNode extends SectionNode {
+  imports: ImportNode[] = []
+
   load(buffer:Buffer) {
+    this.imports = buffer.readVec<ImportNode>(():ImportNode => {
+      const im = new ImportNode()
+      im.load(buffer)
+      return im
+    })
   }
 
   store(buffer:Buffer) {
-    throw new Error("not yet")
+    buffer.writeByte(2) // TODO: ID
+    const sectionsBuffer = new Buffer({buffer:new ArrayBuffer(1024)}) // TODO: 1024 may not be enough.
+    sectionsBuffer.writeVec<ImportNode>(this.imports, (im:ImportNode) => {
+      im.store(sectionsBuffer)
+    })
+    buffer.append(sectionsBuffer)
   }
 }
 
@@ -402,6 +414,50 @@ class LocalsNode {
 
     buffer.writeU32(this.num)
     buffer.writeByte(this.valType)
+  }
+}
+
+class ImportNode {
+  moduleName?:string
+  objectName?:string
+  importDesc?:ImportDescNode
+
+  load(buffer:Buffer) {
+    this.moduleName = buffer.readName()
+    this.objectName = buffer.readName()
+    this.importDesc = new ImportDescNode()
+    this.importDesc.load(buffer)
+  }
+
+  store(buffer:Buffer) {
+    if (this.moduleName === undefined || 
+        this.objectName === undefined || 
+        this.importDesc === undefined) {
+      throw new Error("invalid export")
+    }
+
+    buffer.writeName(this.moduleName)
+    buffer.writeName(this.objectName)
+    this.importDesc.store(buffer)
+  }
+}
+
+class ImportDescNode {
+  tag?:number
+  index?:number
+
+  load(buffer:Buffer) {
+    this.tag = buffer.readByte()
+    this.index = buffer.readU32()
+  }
+
+  store(buffer:Buffer) {
+    if (this.tag === undefined || this.index === undefined) {
+      throw new Error("invalid exportdesc")
+    }
+
+    buffer.writeByte(this.tag)
+    buffer.writeU32(this.index)
   }
 }
 

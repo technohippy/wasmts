@@ -49,6 +49,12 @@ Deno.test("load local.wasm", async () => {
   assertEquals(3, mod.sections.length)
 })
 
+Deno.test("load import.wasm", async () => {
+  const [mod] = await loadModule("./test/data/wasm/import.wasm")
+  assert(true, "no error")
+  assertEquals(5, mod.sections.length)
+})
+
 // store
 
 Deno.test("store module.wasm", async () => {
@@ -88,6 +94,13 @@ Deno.test("store if.wasm", async () => {
 
 Deno.test("store local.wasm", async () => {
   const [mod, inBuffer] = await loadModule("./test/data/wasm/local.wasm")
+  const outBuffer = new Buffer({buffer:new ArrayBuffer(1024)})
+  mod.store(outBuffer)
+  assertEquals(inBuffer.toString(), outBuffer.toString())
+})
+
+Deno.test("store import.wasm", async () => {
+  const [mod, inBuffer] = await loadModule("./test/data/wasm/import.wasm")
   const outBuffer = new Buffer({buffer:new ArrayBuffer(1024)})
   mod.store(outBuffer)
   assertEquals(inBuffer.toString(), outBuffer.toString())
@@ -145,9 +158,20 @@ Deno.test("invoke gcd.wasm", async () => {
   assertEquals(6, inst.exports.gcd(42, 12))
   assertEquals(14, inst.exports.gcd(42, 28))
 })
+
 /*
-const wasmCode = await Deno.readFile("test/data/wasm/gcd.wasm")
-const wasmModule = new WebAssembly.Module(wasmCode)
-const wasmInstance = new WebAssembly.Instance(wasmModule)
-const gcd = wasmInstance.exports.gcd
+Deno.test("invoke import.wasm", async () => {
+  const logs:number[] = []
+  const [mod] = await loadModule("./test/data/wasm/import.wasm")
+  const inst = mod.instantiate({
+    env: {
+      print:(msg:number) => {
+        console.log(msg)
+        logs.push(msg)
+      }
+    }
+  })
+  inst.exports.main()
+  assertEquals(42, logs[0])
+})
 */
