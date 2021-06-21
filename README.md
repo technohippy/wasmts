@@ -20,7 +20,7 @@ undefined
 undefined
 > mod.load(buffer)
 undefined
-> const instance = m.instantiate()
+> const instance = mod.instantiate()
 undefined
 > instance.exports.gcd(42, 12)
 6
