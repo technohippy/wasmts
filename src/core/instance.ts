@@ -39,6 +39,17 @@ export class Instance {
     const typeSection = this.#module.typeSection
 
     // import
+    const importSection = this.#module.importSection
+    importSection?.imports.forEach(im => {
+      if (im.importDesc?.tag === 0x00) { // TODO: funcidx
+        const jsFunc:Function = this.#importObject[im.moduleName!][im.objectName!]
+        const jsFuncType = typeSection!.funcTypes[im.importDesc.index!]
+        const func = new WasmFunction(jsFuncType, jsFunc)
+        this.#context.functions.push(func)
+      } else {
+        throw new Error(`not yet: ${im.importDesc?.index}`)
+      }
+    })
 
     // function
     const functionSection = this.#module.functionSection
@@ -59,6 +70,8 @@ export class Instance {
           //this.#context.clearStack()
           return result
         }
+      } else {
+        throw new Error(`not yet: ${exp.exportDesc?.index}`)
       }
     })
   }
@@ -66,13 +79,17 @@ export class Instance {
 
 class WasmFunction {
   #funcType:FuncTypeNode
-  #code:CodeNode
-  #instructions:InstructionSeq
+  #code?:CodeNode
+  #instructions:InstructionSeq | JsFuncInstruction
 
-  constructor(funcType:FuncTypeNode, code:CodeNode) {
+  constructor(funcType:FuncTypeNode, code:CodeNode | Function) {
     this.#funcType = funcType
-    this.#code = code
-    this.#instructions = new InstructionSeq(this.#code.func?.expr?.instrs)
+    if (code instanceof CodeNode) {
+      this.#code = code
+      this.#instructions = new InstructionSeq(this.#code.func?.expr?.instrs)
+    } else {
+      this.#instructions = new JsFuncInstruction(funcType, code)
+    }
   }
 
   invoke(context:Context, ...args:number[]) {
@@ -90,7 +107,7 @@ class WasmFunction {
     })
 
     // set local vars
-    const localses = this.#code.func?.localses
+    const localses = this.#code?.func?.localses
     if (localses) {
       for (let i = 0; i < localses.length; i++) {
         const locals = localses[i]
@@ -101,10 +118,7 @@ class WasmFunction {
     }
 
     // invoke
-    let instr = this.#instructions.top
-    while (instr) {
-      instr = instr.invoke(context)
-    }
+    this.#instructions.invoke(context)
 
     const resultTypes = this.#funcType.resultType.valTypes
     if (resultTypes.length === 0) {
@@ -213,7 +227,11 @@ class InstructionSeq extends Instruction {
   }
 
   invoke(context:Context): Instruction | undefined {
-    return this.top
+    let instr = this.top
+    while (instr) {
+      instr = instr.invoke(context)
+    }
+    return undefined
   }
 }
 
@@ -540,6 +558,47 @@ class LocalValue {
       default:
         throw new Error(`invalid local type: ${this.#type}`)
     }
+  }
+}
+
+class JsFuncInstruction extends Instruction {
+  #funcType:FuncTypeNode
+  #code:Function
+
+  constructor(funcType:FuncTypeNode, code:Function) {
+    super()
+    this.#funcType = funcType
+    this.#code = code
+  }
+
+  invoke(context:Context):undefined {
+    if (context.debug) console.warn(`invoke js function: ${this.#code.name}`)
+
+    // invoke
+    const args = context.locals.map(lv => lv.value)
+    const result = this.#code.apply(null, args)
+
+    // write result
+    const valType = this.#funcType.resultType?.valTypes[0]
+    if (valType) {
+      switch (valType) {
+        case 0x7f: // TODO: i32
+          context.stack.writeI32(result)
+          break
+/*
+        case 0x7e: // TODO: i64
+          break
+        case 0x7d: // TODO: f32
+          break
+        case 0x7c: // TODO: f64
+          break
+*/
+        default:
+          throw new Error(`invalid local type: ${valType}`)
+      }
+    }
+
+    return undefined
   }
 }
 

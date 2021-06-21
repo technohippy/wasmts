@@ -84,6 +84,8 @@ export class Buffer {
     let shift = 0;
     while (true) {
       const byte = this.readByte()
+      if (byte < 0) throw new Error("fail to read buffer")
+
       result |= (byte & 0b01111111) << shift;
       shift += 7;
       if ((0b10000000 & byte) === 0) {
