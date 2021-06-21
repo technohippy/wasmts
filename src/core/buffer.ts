@@ -1,3 +1,5 @@
+import { ValType } from "./node.ts"
+
 export class Buffer {
   #cursor = 0
   #buffer: ArrayBuffer
@@ -116,6 +118,23 @@ export class Buffer {
     return vec
   }
 
+  readByValType(valType:ValType): number {
+    switch (valType) {
+      case 0x7f: // TODO: i32
+        return this.readI32()
+      /*
+      case 0x7e: // TODO: i64
+        return this.readI64()
+      case 0x7d: // TODO: f32
+        return this.readF32()
+      case 0x7c: // TODO: f64
+        return this.readF64()
+      */
+      default:
+        throw new Error(`invalid result type: ${valType}`)
+    }
+  }
+
   writeBytes(bytes:ArrayBuffer) {
     const u8s = new Uint8Array(bytes)
     for (let byte of u8s) {
@@ -179,6 +198,28 @@ export class Buffer {
     for (const t of ts) {
       writeT(t)
     }
+  }
+
+  writeByValType(valType:ValType, val:number) {
+    switch(valType) {
+      case 0x7f: // TODO: i32
+        this.writeI32(val)
+        break
+/*
+      case 0x7e: // TODO: i64
+        this.writeI64(val)
+        break
+      case 0x7d: // TODO: f32
+        this.writeF32(val)
+        break
+      case 0x7c: // TODO: f64
+        this.writeF64(val)
+        break
+*/
+      default:
+        throw new Error(`invalid local type: ${valType}`)
+    }
+
   }
 
   toString(): string {

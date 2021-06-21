@@ -3,7 +3,7 @@ import {
   BlockInstrNode, LoopInstrNode, IfInstrNode, BrInstrNode, 
   BrIfInstrNode, CallInstrNode, I32ConstInstrNode, I32EqzInstrNode, 
   I32LtSInstrNode, I32GeSInstrNode, I32GeUInstrNode, I32AddInstrNode, 
-  I32RemSInstrNode, LocalGetInstrNode, LocalSetInstrNode,
+  I32RemSInstrNode, LocalGetInstrNode, LocalSetInstrNode, ValType,
 } from "./node.ts"
 import { Buffer, StackBuffer } from "./buffer.ts"
 
@@ -42,9 +42,9 @@ export class Instance {
     const importSection = this.#module.importSection
     importSection?.imports.forEach(im => {
       if (im.importDesc?.tag === 0x00) { // TODO: funcidx
-        const jsFunc:Function = this.#importObject[im.moduleName!][im.objectName!]
+        const jsFunc = this.#importObject[im.moduleName!][im.objectName!] as Function
         const jsFuncType = typeSection!.funcTypes[im.importDesc.index!]
-        const func = new WasmFunction(jsFuncType, jsFunc)
+        const func = new WasmFunction(jsFuncType, new JsFuncInstruction(jsFuncType, jsFunc))
         this.#context.functions.push(func)
       } else {
         throw new Error(`not yet: ${im.importDesc?.index}`)
@@ -82,13 +82,13 @@ class WasmFunction {
   #code?:CodeNode
   #instructions:InstructionSeq | JsFuncInstruction
 
-  constructor(funcType:FuncTypeNode, code:CodeNode | Function) {
+  constructor(funcType:FuncTypeNode, code:CodeNode | JsFuncInstruction) {
     this.#funcType = funcType
     if (code instanceof CodeNode) {
       this.#code = code
       this.#instructions = new InstructionSeq(this.#code.func?.expr?.instrs)
     } else {
-      this.#instructions = new JsFuncInstruction(funcType, code)
+      this.#instructions = code
     }
   }
 
@@ -124,20 +124,7 @@ class WasmFunction {
     if (resultTypes.length === 0) {
       return null
     } else {
-      switch (resultTypes[0]) {
-        case 0x7f: // TODO: i32
-          return context.stack.readI32()
-        /*
-        case 0x7e: // TODO: i64
-          return context.stack.readI64()
-        case 0x7d: // TODO: f32
-          return context.stack.readF32()
-        case 0x7c: // TODO: f64
-          return context.stack.readF64()
-        */
-        default:
-          throw new Error(`invalid result type: ${resultTypes[0]}`)
-      }
+      return context.stack.readByValType(resultTypes[0])
     }
   }
 }
@@ -501,7 +488,7 @@ class LocalSetInstruction extends Instruction {
 
 // TODO: データはBufferで保持して、get/setで型を意識したほうがいいかも
 class LocalValue {
-  #type:number
+  #type:ValType
   #value:number
 
   get value():number {
@@ -512,90 +499,41 @@ class LocalValue {
     this.#value = val
   }
 
-  constructor(type:number, value:number) {
+  constructor(type:ValType, value:number) {
     this.#type = type
     this.#value = value
   }
 
   store(buffer:Buffer) {
-    switch(this.#type) {
-      case 0x7f: // TODO: i32
-        buffer.writeI32(this.#value)
-        break
-/*
-      case 0x7e: // TODO: i64
-        buffer.writeI64(this.#value)
-        break
-      case 0x7d: // TODO: f32
-        buffer.writeF32(this.#value)
-        break
-      case 0x7c: // TODO: f64
-        buffer.writeF64(this.#value)
-        break
-*/
-      default:
-        throw new Error(`invalid local type: ${this.#type}`)
-    }
+    buffer.writeByValType(this.#type, this.#value)
   }
 
   load(buffer:Buffer) {
-    switch(this.#type) {
-      case 0x7f: // TODO: i32
-        this.#value = buffer.readI32()
-        break
-/*
-      case 0x7e: // TODO: i64
-        this.#value = buffer.readI64()
-        break
-      case 0x7d: // TODO: f32
-        this.#value = buffer.readF32()
-        buffer.writeF32(this.#value)
-        break
-      case 0x7c: // TODO: f64
-        this.#value = buffer.readF64()
-        break
-*/
-      default:
-        throw new Error(`invalid local type: ${this.#type}`)
-    }
+    this.#value = buffer.readByValType(this.#type)
   }
 }
 
 class JsFuncInstruction extends Instruction {
   #funcType:FuncTypeNode
-  #code:Function
+  #func:Function
 
-  constructor(funcType:FuncTypeNode, code:Function) {
+  constructor(funcType:FuncTypeNode, func:Function) {
     super()
     this.#funcType = funcType
-    this.#code = code
+    this.#func = func
   }
 
   invoke(context:Context):undefined {
-    if (context.debug) console.warn(`invoke js function: ${this.#code.name}`)
+    if (context.debug) console.warn(`invoke js function: ${this.#func.name}`)
 
     // invoke
     const args = context.locals.map(lv => lv.value)
-    const result = this.#code.apply(null, args)
+    const result = this.#func.apply(null, args)
 
     // write result
     const valType = this.#funcType.resultType?.valTypes[0]
     if (valType) {
-      switch (valType) {
-        case 0x7f: // TODO: i32
-          context.stack.writeI32(result)
-          break
-/*
-        case 0x7e: // TODO: i64
-          break
-        case 0x7d: // TODO: f32
-          break
-        case 0x7c: // TODO: f64
-          break
-*/
-        default:
-          throw new Error(`invalid local type: ${valType}`)
-      }
+      context.stack.writeByValType(valType, result)
     }
 
     return undefined
