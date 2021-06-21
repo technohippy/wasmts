@@ -159,14 +159,13 @@ Deno.test("invoke gcd.wasm", async () => {
   assertEquals(14, inst.exports.gcd(42, 28))
 })
 
-/*
 Deno.test("invoke import.wasm", async () => {
   const logs:number[] = []
   const [mod] = await loadModule("./test/data/wasm/import.wasm")
   const inst = mod.instantiate({
     env: {
       print:(msg:number) => {
-        console.log(msg)
+        //console.log(msg)
         logs.push(msg)
       }
     }
@@ -174,4 +173,13 @@ Deno.test("invoke import.wasm", async () => {
   inst.exports.main()
   assertEquals(42, logs[0])
 })
-*/
+
+Deno.test("invoke import2.wasm", async () => {
+  const [mod] = await loadModule("./test/data/wasm/import2.wasm")
+  const inst = mod.instantiate({
+    env: {
+      mul:(n:number, m:number) => n * m
+    }
+  })
+  assertEquals(42, inst.exports.mul(6, 7))
+})
