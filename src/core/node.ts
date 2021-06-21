@@ -780,7 +780,7 @@ type NumType = I32 | I64 | F32 | F64
 type FuncRef = 0x70
 type ExternRef = 0x6f
 type RefType = FuncRef | ExternRef
-type ValType = NumType | RefType
+export type ValType = NumType | RefType
 type S33 = number
 type BlockType = 0x40 | ValType | S33
 
