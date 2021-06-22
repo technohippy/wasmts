@@ -3,7 +3,8 @@ import {
   BlockInstrNode, LoopInstrNode, IfInstrNode, BrInstrNode, 
   BrIfInstrNode, CallInstrNode, I32ConstInstrNode, I32EqzInstrNode, 
   I32LtSInstrNode, I32GeSInstrNode, I32GeUInstrNode, I32AddInstrNode, 
-  I32RemSInstrNode, LocalGetInstrNode, LocalSetInstrNode, ValType,
+  I32RemSInstrNode, LocalGetInstrNode, LocalSetInstrNode, LocalTeeInstrNode,
+  GlobalGetInstrNode, GlobalSetInstrNode, GlobalTypeNode, ExprNode, ValType,
 } from "./node.ts"
 import { Buffer, StackBuffer } from "./buffer.ts"
 
@@ -46,8 +47,11 @@ export class Instance {
         const jsFuncType = typeSection!.funcTypes[im.importDesc.index!]
         const func = new WasmFunction(jsFuncType, new JsFuncInstruction(jsFuncType, jsFunc))
         this.#context.functions.push(func)
+      } else if (im.importDesc?.tag === 0x03) { // TODO: globalidx
+        const globalValue = this.#importObject[im.moduleName!][im.objectName!] as GlobalValue
+        this.#context.globals.push(globalValue)
       } else {
-        throw new Error(`not yet: ${im.importDesc?.index}`)
+        throw new Error(`not yet import desc: ${im.importDesc?.index}`)
       }
     })
 
@@ -60,6 +64,12 @@ export class Instance {
     })
 
     // global
+    const globalSection = this.#module.globalSection
+    globalSection?.globals.forEach((g, i) => {
+      const globalValue = new GlobalValue(g.globalType!, g.expr)
+      globalValue.init(this.#context)
+      this.#context.globals.push(globalValue)
+    })
 
     // export
     const exportSection = this.#module.exportSection
@@ -182,6 +192,12 @@ class Instruction {
       return new LocalGetInstruction(node, parent)
     } else if (node instanceof LocalSetInstrNode) {
       return new LocalSetInstruction(node, parent)
+    } else if (node instanceof LocalTeeInstrNode) {
+      return new LocalTeeInstruction(node, parent)
+    } else if (node instanceof GlobalGetInstrNode) {
+      return new GlobalGetInstruction(node, parent)
+    } else if (node instanceof GlobalSetInstrNode) {
+      return new GlobalSetInstruction(node, parent)
     } else {
       throw new Error(`invalid node: ${node.constructor.name}`)
     }
@@ -486,6 +502,61 @@ class LocalSetInstruction extends Instruction {
   }
 }
 
+class LocalTeeInstruction extends Instruction {
+  #localIdx: number
+
+  constructor(node:LocalSetInstrNode, parent?:Instruction) {
+    super(parent)
+    this.#localIdx = node.localIdx
+  }
+
+  invoke(context:Context):Instruction | undefined {
+    if (context.debug) console.warn("invoke local.tee")
+    const val = context.stack.readI32()
+    context.stack.writeI32(val)
+    context.stack.writeI32(val)
+
+    const local = context.locals[this.#localIdx]
+    local.load(context.stack)
+    return this.next
+  }
+}
+
+class GlobalGetInstruction extends Instruction {
+  #globalIdx: number
+
+  constructor(node:GlobalGetInstrNode, parent?:Instruction) {
+    super(parent)
+    this.#globalIdx = node.globalIdx
+  }
+
+  invoke(context:Context):Instruction | undefined {
+    if (context.debug) console.warn("invoke global.get")
+    const global = context.globals[this.#globalIdx]
+    global.store(context.stack)
+    return this.next
+  }
+}
+
+class GlobalSetInstruction extends Instruction {
+  #globalIdx: number
+
+  constructor(node:GlobalSetInstrNode, parent?:Instruction) {
+    super(parent)
+    this.#globalIdx = node.globalIdx
+  }
+
+  invoke(context:Context):Instruction | undefined {
+    if (context.debug) console.warn("invoke global.set")
+    const global = context.globals[this.#globalIdx]
+    if (!global.mutable) {
+      throw new Error('this value is immutable.')
+    }
+    global.load(context.stack)
+    return this.next
+  }
+}
+
 // TODO: データはBufferで保持して、get/setで型を意識したほうがいいかも
 class LocalValue {
   #type:ValType
@@ -510,6 +581,63 @@ class LocalValue {
 
   load(buffer:Buffer) {
     this.#value = buffer.readByValType(this.#type)
+  }
+}
+
+export class GlobalValue {
+  #type:GlobalTypeNode
+  #value?:number
+  #expr?:ExprNode
+
+  get value():number | undefined {
+    return this.#value
+  }
+
+  set value(val:number | undefined) {
+    this.#value = val
+  }
+
+  get mutable():boolean {
+    return this.#type.mut === 0x01 // var
+  }
+
+  static build(value:number, opt:{type?:string, mut?:boolean}):GlobalValue {
+    opt = Object.assign({type:"i32", mut:true}, opt)
+    const globalType = new GlobalTypeNode()
+    globalType.valType = {
+      i32:0x7f,
+      i64:0x7e,
+      f32:0x7d,
+      f64:0x7c,
+    }[opt["type"]!] as ValType
+    globalType.mut = opt["mut"] ? 0x01 : 0x00
+    const globalValue = new GlobalValue(globalType)
+    globalValue.value = value
+    return globalValue
+  }
+
+  constructor(type:GlobalTypeNode, expr?:ExprNode) {
+    this.#type = type
+    this.#expr = expr
+  }
+
+  init(context:Context) {
+    if (this.#value !== undefined) {
+      throw new Error("global's been already initialized.")
+    }
+    if (this.#expr === undefined) return
+
+    const instrs = new InstructionSeq(this.#expr.instrs)
+    instrs.invoke(context)
+    this.load(context.stack)
+  }
+
+  store(buffer:Buffer) {
+    buffer.writeByValType(this.#type.valType!, this.#value!)
+  }
+
+  load(buffer:Buffer) {
+    this.#value = buffer.readByValType(this.#type.valType!)
   }
 }
 
@@ -543,6 +671,7 @@ class JsFuncInstruction extends Instruction {
 export class Context {
   stack:Buffer
   functions:WasmFunction[]
+  globals:GlobalValue[]
   locals:LocalValue[]
 
   debug:boolean = false
@@ -553,8 +682,8 @@ export class Context {
     /*
     this.memories = []
     this.tables = []
-    this.globals = []
     */
+    this.globals = []
     this.locals = []
   }
 

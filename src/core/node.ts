@@ -233,11 +233,23 @@ class MemorySectionNode extends SectionNode {
 }
 
 class GlobalSectionNode extends SectionNode {
+  globals: GlobalNode[] = []
+
   load(buffer:Buffer) {
+    this.globals = buffer.readVec<GlobalNode>(():GlobalNode => {
+      const g = new GlobalNode()
+      g.load(buffer)
+      return g
+    })
   }
 
   store(buffer:Buffer) {
-    throw new Error("not yet")
+    buffer.writeByte(6) // TODO: ID
+    const sectionsBuffer = new Buffer({buffer:new ArrayBuffer(1024)}) // TODO: 1024 may not be enough.
+    sectionsBuffer.writeVec<GlobalNode>(this.globals, (g:GlobalNode) => {
+      g.store(sectionsBuffer)
+    })
+    buffer.append(sectionsBuffer)
   }
 }
 
@@ -461,6 +473,47 @@ class ImportDescNode {
   }
 }
 
+class GlobalNode {
+  globalType?:GlobalTypeNode
+  expr?:ExprNode
+
+  load(buffer:Buffer) {
+    this.globalType = new GlobalTypeNode()
+    this.globalType.load(buffer)
+    this.expr = new ExprNode()
+    this.expr.load(buffer)
+  }
+
+  store(buffer:Buffer) {
+    if (this.globalType === undefined || 
+        this.expr === undefined) {
+      throw new Error("invalid export")
+    }
+
+    this.globalType.store(buffer)
+    this.expr.store(buffer)
+  }
+}
+
+export class GlobalTypeNode {
+  valType?:ValType
+  mut?:number // 0x00:const, 0x01:var
+
+  load(buffer:Buffer) {
+    this.valType = buffer.readByte() as ValType
+    this.mut = buffer.readByte()
+  }
+
+  store(buffer:Buffer) {
+    if (this.valType === undefined || this.mut === undefined) {
+      throw new Error("invalid globaltype")
+    }
+
+    buffer.writeByte(this.valType)
+    buffer.writeByte(this.mut)
+  }
+}
+
 class ExportNode {
   name?:string
   exportDesc?:ExportDescNode
@@ -500,7 +553,7 @@ class ExportDescNode {
   }
 }
 
-class ExprNode {
+export class ExprNode {
   instrs: InstrNode[] = []
   endOp!: Op
 
@@ -553,6 +606,9 @@ export class InstrNode {
       [Op.I32RemS]: I32RemSInstrNode,
       [Op.LocalGet]: LocalGetInstrNode,
       [Op.LocalSet]: LocalSetInstrNode,
+      [Op.LocalTee]: LocalTeeInstrNode,
+      [Op.GlobalGet]: GlobalGetInstrNode,
+      [Op.GlobalSet]: GlobalSetInstrNode,
     }[opcode]
     if (!klass) return undefined
     return new klass(opcode)
@@ -729,6 +785,57 @@ export class LocalSetInstrNode extends InstrNode {
   }
 }
 
+export class LocalTeeInstrNode extends InstrNode {
+  localIdx!: number
+
+  load(buffer:Buffer) {
+    this.localIdx = buffer.readU32()
+  }
+
+  store(buffer:Buffer) {
+    if (this.localIdx === undefined) {
+      throw new Error("invalid local.tee")
+    }
+
+    super.store(buffer)
+    buffer.writeU32(this.localIdx)
+  }
+}
+
+export class GlobalGetInstrNode extends InstrNode {
+  globalIdx!: number
+
+  load(buffer:Buffer) {
+    this.globalIdx = buffer.readU32()
+  }
+
+  store(buffer:Buffer) {
+    if (this.globalIdx === undefined) {
+      throw new Error("invalid global.get")
+    }
+
+    super.store(buffer)
+    buffer.writeU32(this.globalIdx)
+  }
+}
+
+export class GlobalSetInstrNode extends InstrNode {
+  globalIdx!: number
+
+  load(buffer:Buffer) {
+    this.globalIdx = buffer.readU32()
+  }
+
+  store(buffer:Buffer) {
+    if (this.globalIdx === undefined) {
+      throw new Error("invalid global.set")
+    }
+
+    super.store(buffer)
+    buffer.writeU32(this.globalIdx)
+  }
+}
+
 export class I32ConstInstrNode extends InstrNode {
   num!: number
 
@@ -794,6 +901,9 @@ const Op = {
   Call: 0x10,
   LocalGet: 0x20,
   LocalSet: 0x21,
+  LocalTee: 0x22,
+  GlobalGet: 0x23,
+  GlobalSet: 0x24,
   I32Const: 0x41,
   I32Eqz: 0x45,
   I32LtS: 0x48,
