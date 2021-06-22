@@ -35,9 +35,3 @@ $
 ```
 $ deno test --allow-read test/
 ```
-
-## How to Bundle
-
-```
-$ deno bundle src/wasm.ts > bundle/wasm.js
-```

@@ -1,20 +1,22 @@
 # TODO
 
-- importObject対応
-  - v 関数
-  - Global
-  - Memory
-  - Table
-- セクション
-  - Start
-  - Element
-  - DataCount
-  - Data
-- データ型追加
-  - i64
-  - f32
-  - f64
-- 命令の追加
-- labelの扱いを仕様に合わせる
-
-# Done
+- [ ] importObject対応
+  - [x] 関数
+  - [x] Global
+  - [ ] Memory
+  - [ ] Table
+- [ ] セクション
+  - [ ] Start（Table, Memoryの対応が先）
+  - [ ] Element
+  - [ ] Data
+  - [ ] DataCount
+- [ ] データ型追加
+  - [ ] i64
+  - [ ] f32
+  - [ ] f64
+- [ ] 未対応命令の追加
+- [ ] labelの扱いを仕様に合わせる
+- [ ] wasm構築用のメソッドを追加
+- [ ] cmdをもう少しちゃんとする
+- [ ] WASI対応
+- [ ] instance.tsのimportをどうにかする
