@@ -2,6 +2,7 @@
 import { assert, assertEquals } from "https://deno.land/std@0.93.0/testing/asserts.ts"
 import { Buffer } from "../src/core/buffer.ts"
 import { ModuleNode } from "../src/core/node.ts"
+import { GlobalValue } from "../src/core/instance.ts"
 
 async function loadModule(filepath:string):Promise<[ModuleNode, Buffer]> {
   const code = await Deno.readFile(filepath)
@@ -201,4 +202,18 @@ Deno.test("invoke global.wasm", async () => {
   const [mod] = await loadModule("./test/data/wasm/global.wasm")
   const inst = mod.instantiate()
   assertEquals(3, inst.exports.main())
+})
+
+Deno.test("invoke importglobal.wasm", async () => {
+  const [mod] = await loadModule("./test/data/wasm/importglobal.wasm")
+  const importObject = {
+    env: {
+      g: GlobalValue.build(42, {type:"i32", mut:true})
+    }
+  }
+  const inst = mod.instantiate(importObject)
+  inst.exports.add100()
+  assertEquals(142, importObject.env.g.value)
+  inst.exports.add100()
+  assertEquals(242, importObject.env.g.value)
 })

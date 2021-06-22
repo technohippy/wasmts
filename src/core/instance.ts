@@ -47,8 +47,11 @@ export class Instance {
         const jsFuncType = typeSection!.funcTypes[im.importDesc.index!]
         const func = new WasmFunction(jsFuncType, new JsFuncInstruction(jsFuncType, jsFunc))
         this.#context.functions.push(func)
+      } else if (im.importDesc?.tag === 0x03) { // TODO: globalidx
+        const globalValue = this.#importObject[im.moduleName!][im.objectName!] as GlobalValue
+        this.#context.globals.push(globalValue)
       } else {
-        throw new Error(`not yet: ${im.importDesc?.index}`)
+        throw new Error(`not yet import desc: ${im.importDesc?.index}`)
       }
     })
 
@@ -546,6 +549,9 @@ class GlobalSetInstruction extends Instruction {
   invoke(context:Context):Instruction | undefined {
     if (context.debug) console.warn("invoke global.set")
     const global = context.globals[this.#globalIdx]
+    if (!global.mutable) {
+      throw new Error('this value is immutable.')
+    }
     global.load(context.stack)
     return this.next
   }
@@ -578,7 +584,7 @@ class LocalValue {
   }
 }
 
-class GlobalValue {
+export class GlobalValue {
   #type:GlobalTypeNode
   #value?:number
   #expr?:ExprNode
@@ -591,6 +597,25 @@ class GlobalValue {
     this.#value = val
   }
 
+  get mutable():boolean {
+    return this.#type.mut === 0x01 // var
+  }
+
+  static build(value:number, opt:{type?:string, mut?:boolean}):GlobalValue {
+    opt = Object.assign({type:"i32", mut:true}, opt)
+    const globalType = new GlobalTypeNode()
+    globalType.valType = {
+      i32:0x7f,
+      i64:0x7e,
+      f32:0x7d,
+      f64:0x7c,
+    }[opt["type"]!] as ValType
+    globalType.mut = opt["mut"] ? 0x01 : 0x00
+    const globalValue = new GlobalValue(globalType)
+    globalValue.value = value
+    return globalValue
+  }
+
   constructor(type:GlobalTypeNode, expr?:ExprNode) {
     this.#type = type
     this.#expr = expr
@@ -598,7 +623,7 @@ class GlobalValue {
 
   init(context:Context) {
     if (this.#value !== undefined) {
-      throw new Error("global's been already ini610Gtialized.")
+      throw new Error("global's been already initialized.")
     }
     if (this.#expr === undefined) return
 
