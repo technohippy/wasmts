@@ -2,6 +2,7 @@
 import { assert, assertEquals } from "https://deno.land/std@0.93.0/testing/asserts.ts"
 import { Buffer } from "../src/core/buffer.ts"
 import { ModuleNode } from "../src/core/node.ts"
+import { GlobalValue } from "../src/core/instance.ts"
 
 async function loadModule(filepath:string):Promise<[ModuleNode, Buffer]> {
   const code = await Deno.readFile(filepath)
@@ -55,6 +56,12 @@ Deno.test("load import.wasm", async () => {
   assertEquals(5, mod.sections.length)
 })
 
+Deno.test("load global.wasm", async () => {
+  const [mod] = await loadModule("./test/data/wasm/global.wasm")
+  assert(true, "no error")
+  assertEquals(5, mod.sections.length)
+})
+
 // store
 
 Deno.test("store module.wasm", async () => {
@@ -101,6 +108,13 @@ Deno.test("store local.wasm", async () => {
 
 Deno.test("store import.wasm", async () => {
   const [mod, inBuffer] = await loadModule("./test/data/wasm/import.wasm")
+  const outBuffer = new Buffer({buffer:new ArrayBuffer(1024)})
+  mod.store(outBuffer)
+  assertEquals(inBuffer.toString(), outBuffer.toString())
+})
+
+Deno.test("store global.wasm", async () => {
+  const [mod, inBuffer] = await loadModule("./test/data/wasm/global.wasm")
   const outBuffer = new Buffer({buffer:new ArrayBuffer(1024)})
   mod.store(outBuffer)
   assertEquals(inBuffer.toString(), outBuffer.toString())
@@ -182,4 +196,24 @@ Deno.test("invoke import2.wasm", async () => {
     }
   })
   assertEquals(42, inst.exports.mul(6, 7))
+})
+
+Deno.test("invoke global.wasm", async () => {
+  const [mod] = await loadModule("./test/data/wasm/global.wasm")
+  const inst = mod.instantiate()
+  assertEquals(3, inst.exports.main())
+})
+
+Deno.test("invoke importglobal.wasm", async () => {
+  const [mod] = await loadModule("./test/data/wasm/importglobal.wasm")
+  const importObject = {
+    env: {
+      g: GlobalValue.build(42, {type:"i32", mut:true})
+    }
+  }
+  const inst = mod.instantiate(importObject)
+  inst.exports.add100()
+  assertEquals(142, importObject.env.g.value)
+  inst.exports.add100()
+  assertEquals(242, importObject.env.g.value)
 })
