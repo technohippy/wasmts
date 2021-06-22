@@ -55,6 +55,12 @@ Deno.test("load import.wasm", async () => {
   assertEquals(5, mod.sections.length)
 })
 
+Deno.test("load global.wasm", async () => {
+  const [mod] = await loadModule("./test/data/wasm/global.wasm")
+  assert(true, "no error")
+  assertEquals(5, mod.sections.length)
+})
+
 // store
 
 Deno.test("store module.wasm", async () => {
@@ -101,6 +107,13 @@ Deno.test("store local.wasm", async () => {
 
 Deno.test("store import.wasm", async () => {
   const [mod, inBuffer] = await loadModule("./test/data/wasm/import.wasm")
+  const outBuffer = new Buffer({buffer:new ArrayBuffer(1024)})
+  mod.store(outBuffer)
+  assertEquals(inBuffer.toString(), outBuffer.toString())
+})
+
+Deno.test("store global.wasm", async () => {
+  const [mod, inBuffer] = await loadModule("./test/data/wasm/global.wasm")
   const outBuffer = new Buffer({buffer:new ArrayBuffer(1024)})
   mod.store(outBuffer)
   assertEquals(inBuffer.toString(), outBuffer.toString())
