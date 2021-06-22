@@ -493,24 +493,23 @@ class GlobalNode {
     this.globalType.store(buffer)
     this.expr.store(buffer)
   }
-
 }
 
-class GlobalTypeNode {
-  type?:ValType
+export class GlobalTypeNode {
+  valType?:ValType
   mut?:number // 0x00:const, 0x01:var
 
   load(buffer:Buffer) {
-    this.type = buffer.readByte() as ValType
+    this.valType = buffer.readByte() as ValType
     this.mut = buffer.readByte()
   }
 
   store(buffer:Buffer) {
-    if (this.type === undefined || this.mut === undefined) {
+    if (this.valType === undefined || this.mut === undefined) {
       throw new Error("invalid globaltype")
     }
 
-    buffer.writeByte(this.type)
+    buffer.writeByte(this.valType)
     buffer.writeByte(this.mut)
   }
 }
@@ -554,7 +553,7 @@ class ExportDescNode {
   }
 }
 
-class ExprNode {
+export class ExprNode {
   instrs: InstrNode[] = []
   endOp!: Op
 

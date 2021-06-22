@@ -196,3 +196,9 @@ Deno.test("invoke import2.wasm", async () => {
   })
   assertEquals(42, inst.exports.mul(6, 7))
 })
+
+Deno.test("invoke global.wasm", async () => {
+  const [mod] = await loadModule("./test/data/wasm/global.wasm")
+  const inst = mod.instantiate()
+  assertEquals(3, inst.exports.main())
+})

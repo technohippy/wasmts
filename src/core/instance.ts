@@ -3,7 +3,8 @@ import {
   BlockInstrNode, LoopInstrNode, IfInstrNode, BrInstrNode, 
   BrIfInstrNode, CallInstrNode, I32ConstInstrNode, I32EqzInstrNode, 
   I32LtSInstrNode, I32GeSInstrNode, I32GeUInstrNode, I32AddInstrNode, 
-  I32RemSInstrNode, LocalGetInstrNode, LocalSetInstrNode, ValType,
+  I32RemSInstrNode, LocalGetInstrNode, LocalSetInstrNode, LocalTeeInstrNode,
+  GlobalGetInstrNode, GlobalSetInstrNode, GlobalTypeNode, ExprNode, ValType,
 } from "./node.ts"
 import { Buffer, StackBuffer } from "./buffer.ts"
 
@@ -60,6 +61,12 @@ export class Instance {
     })
 
     // global
+    const globalSection = this.#module.globalSection
+    globalSection?.globals.forEach((g, i) => {
+      const globalValue = new GlobalValue(g.globalType!, g.expr)
+      globalValue.init(this.#context)
+      this.#context.globals.push(globalValue)
+    })
 
     // export
     const exportSection = this.#module.exportSection
@@ -182,6 +189,12 @@ class Instruction {
       return new LocalGetInstruction(node, parent)
     } else if (node instanceof LocalSetInstrNode) {
       return new LocalSetInstruction(node, parent)
+    } else if (node instanceof LocalTeeInstrNode) {
+      return new LocalTeeInstruction(node, parent)
+    } else if (node instanceof GlobalGetInstrNode) {
+      return new GlobalGetInstruction(node, parent)
+    } else if (node instanceof GlobalSetInstrNode) {
+      return new GlobalSetInstruction(node, parent)
     } else {
       throw new Error(`invalid node: ${node.constructor.name}`)
     }
@@ -486,6 +499,58 @@ class LocalSetInstruction extends Instruction {
   }
 }
 
+class LocalTeeInstruction extends Instruction {
+  #localIdx: number
+
+  constructor(node:LocalSetInstrNode, parent?:Instruction) {
+    super(parent)
+    this.#localIdx = node.localIdx
+  }
+
+  invoke(context:Context):Instruction | undefined {
+    if (context.debug) console.warn("invoke local.tee")
+    const val = context.stack.readI32()
+    context.stack.writeI32(val)
+    context.stack.writeI32(val)
+
+    const local = context.locals[this.#localIdx]
+    local.load(context.stack)
+    return this.next
+  }
+}
+
+class GlobalGetInstruction extends Instruction {
+  #globalIdx: number
+
+  constructor(node:GlobalGetInstrNode, parent?:Instruction) {
+    super(parent)
+    this.#globalIdx = node.globalIdx
+  }
+
+  invoke(context:Context):Instruction | undefined {
+    if (context.debug) console.warn("invoke global.get")
+    const global = context.globals[this.#globalIdx]
+    global.store(context.stack)
+    return this.next
+  }
+}
+
+class GlobalSetInstruction extends Instruction {
+  #globalIdx: number
+
+  constructor(node:GlobalSetInstrNode, parent?:Instruction) {
+    super(parent)
+    this.#globalIdx = node.globalIdx
+  }
+
+  invoke(context:Context):Instruction | undefined {
+    if (context.debug) console.warn("invoke global.set")
+    const global = context.globals[this.#globalIdx]
+    global.load(context.stack)
+    return this.next
+  }
+}
+
 // TODO: データはBufferで保持して、get/setで型を意識したほうがいいかも
 class LocalValue {
   #type:ValType
@@ -510,6 +575,44 @@ class LocalValue {
 
   load(buffer:Buffer) {
     this.#value = buffer.readByValType(this.#type)
+  }
+}
+
+class GlobalValue {
+  #type:GlobalTypeNode
+  #value?:number
+  #expr?:ExprNode
+
+  get value():number | undefined {
+    return this.#value
+  }
+
+  set value(val:number | undefined) {
+    this.#value = val
+  }
+
+  constructor(type:GlobalTypeNode, expr?:ExprNode) {
+    this.#type = type
+    this.#expr = expr
+  }
+
+  init(context:Context) {
+    if (this.#value !== undefined) {
+      throw new Error("global's been already ini610Gtialized.")
+    }
+    if (this.#expr === undefined) return
+
+    const instrs = new InstructionSeq(this.#expr.instrs)
+    instrs.invoke(context)
+    this.load(context.stack)
+  }
+
+  store(buffer:Buffer) {
+    buffer.writeByValType(this.#type.valType!, this.#value!)
+  }
+
+  load(buffer:Buffer) {
+    this.#value = buffer.readByValType(this.#type.valType!)
   }
 }
 
@@ -543,6 +646,7 @@ class JsFuncInstruction extends Instruction {
 export class Context {
   stack:Buffer
   functions:WasmFunction[]
+  globals:GlobalValue[]
   locals:LocalValue[]
 
   debug:boolean = false
@@ -553,8 +657,8 @@ export class Context {
     /*
     this.memories = []
     this.tables = []
-    this.globals = []
     */
+    this.globals = []
     this.locals = []
   }
 
