@@ -103,6 +103,18 @@ export class Buffer {
     return this.readS32()
   }
 
+  readI64(): number {
+    throw new Error("not yet readI64")
+  }
+
+  readF32(): number {
+    throw new Error("not yet readF32")
+  }
+
+  readF64(): number {
+    throw new Error("not yet readF64")
+  }
+
   readName(): string {
     const size = this.readU32()
     const bytes = this.readBytes(size)
@@ -120,16 +132,14 @@ export class Buffer {
 
   readByValType(valType:ValType): number {
     switch (valType) {
-      case 0x7f: // TODO: i32
+      case 0x7f:
         return this.readI32()
-      /*
-      case 0x7e: // TODO: i64
+      case 0x7e:
         return this.readI64()
-      case 0x7d: // TODO: f32
+      case 0x7d:
         return this.readF32()
-      case 0x7c: // TODO: f64
+      case 0x7c:
         return this.readF64()
-      */
       default:
         throw new Error(`invalid result type: ${valType}`)
     }
@@ -186,6 +196,18 @@ export class Buffer {
     this.writeS32(num)
   }
 
+  writeI64(num:number) {
+    throw new Error("not yet: writeI64")
+  }
+
+  writeF32(num:number) {
+    throw new Error("not yet: writeF32")
+  }
+
+  writeF64(num:number) {
+    throw new Error("not yet: writeF64")
+  }
+
   writeName(name:string) {
     const encoder = new TextEncoder()
     const bytes = encoder.encode(name)
@@ -202,20 +224,18 @@ export class Buffer {
 
   writeByValType(valType:ValType, val:number) {
     switch(valType) {
-      case 0x7f: // TODO: i32
+      case 0x7f:
         this.writeI32(val)
         break
-/*
-      case 0x7e: // TODO: i64
+      case 0x7e:
         this.writeI64(val)
         break
-      case 0x7d: // TODO: f32
+      case 0x7d:
         this.writeF32(val)
         break
-      case 0x7c: // TODO: f64
+      case 0x7c:
         this.writeF64(val)
         break
-*/
       default:
         throw new Error(`invalid local type: ${valType}`)
     }
