@@ -84,6 +84,12 @@ export class Instance {
         throw new Error(`not yet: ${exp.exportDesc?.index}`)
       }
     })
+
+    // start
+    const startSection = this.#module.startSection
+    if (startSection) {
+      this.#context.functions[startSection.start!.funcId!].invoke(this.#context)
+    }
   }
 }
 

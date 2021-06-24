@@ -6,7 +6,7 @@
   - [ ] Memory
   - [ ] Table
 - [ ] セクション
-  - [ ] Start（Table, Memoryの対応が先）
+  - [x] Start
   - [ ] Element
   - [ ] Data
   - [ ] DataCount

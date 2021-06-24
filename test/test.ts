@@ -62,6 +62,12 @@ Deno.test("load global.wasm", async () => {
   assertEquals(5, mod.sections.length)
 })
 
+Deno.test("load start.wasm", async () => {
+  const [mod] = await loadModule("./test/data/wasm/start.wasm")
+  assert(true, "no error")
+  assertEquals(5, mod.sections.length)
+})
+
 // store
 
 Deno.test("store module.wasm", async () => {
@@ -115,6 +121,13 @@ Deno.test("store import.wasm", async () => {
 
 Deno.test("store global.wasm", async () => {
   const [mod, inBuffer] = await loadModule("./test/data/wasm/global.wasm")
+  const outBuffer = new Buffer({buffer:new ArrayBuffer(1024)})
+  mod.store(outBuffer)
+  assertEquals(inBuffer.toString(), outBuffer.toString())
+})
+
+Deno.test("store start.wasm", async () => {
+  const [mod, inBuffer] = await loadModule("./test/data/wasm/start.wasm")
   const outBuffer = new Buffer({buffer:new ArrayBuffer(1024)})
   mod.store(outBuffer)
   assertEquals(inBuffer.toString(), outBuffer.toString())
@@ -216,4 +229,18 @@ Deno.test("invoke importglobal.wasm", async () => {
   assertEquals(142, importObject.env.g.value)
   inst.exports.add100()
   assertEquals(242, importObject.env.g.value)
+})
+
+Deno.test("invoke start.wasm", async () => {
+  const logs:number[] = []
+  const [mod] = await loadModule("./test/data/wasm/start.wasm")
+  const inst = mod.instantiate({
+    env: {
+      print:(msg:number) => {
+        //console.log(msg)
+        logs.push(msg)
+      }
+    }
+  })
+  assertEquals(100, logs[0])
 })
