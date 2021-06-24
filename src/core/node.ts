@@ -275,11 +275,20 @@ class ExportSectionNode extends SectionNode {
 }
 
 class StartSectionNode extends SectionNode {
+  start?:StartNode
+
   load(buffer:Buffer) {
+    this.start = new StartNode()
+    this.start.load(buffer)
   }
 
   store(buffer:Buffer) {
-    throw new Error("not yet")
+    if (this.start === undefined) return 
+
+    buffer.writeByte(8) // TODO: ID
+    const sectionBuffer = new Buffer({buffer:new ArrayBuffer(1024)}) // TODO: 1024 may not be enough.
+    this.start.store(sectionBuffer)
+    buffer.append(sectionBuffer)
   }
 }
 
@@ -868,6 +877,21 @@ export class I32AddInstrNode extends InstrNode {
 }
 
 export class I32RemSInstrNode extends InstrNode {
+}
+
+class StartNode {
+  funcId?:FuncIdx
+
+  load(buffer:Buffer) {
+    this.funcId = buffer.readByte() as FuncIdx
+  }
+
+  store(buffer:Buffer) {
+    if (this.funcId === undefined) {
+      throw new Error("invalid funcId")
+    }
+    buffer.writeByte(this.funcId)
+  }
 }
 
 type TypeIdx = number
