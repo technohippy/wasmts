@@ -224,11 +224,23 @@ class TableSectionNode extends SectionNode {
 }
 
 class MemorySectionNode extends SectionNode {
+  memories:MemoryNode[] = []
+
   load(buffer:Buffer) {
+    this.memories = buffer.readVec<MemoryNode>(():MemoryNode => {
+      const mem = new MemoryNode()
+      mem.load(buffer)
+      return mem
+    })
   }
 
   store(buffer:Buffer) {
-    throw new Error("not yet")
+    buffer.writeByte(5) // TODO: ID
+    const sectionsBuffer = new Buffer({buffer:new ArrayBuffer(1024)}) // TODO: 1024 may not be enough.
+    sectionsBuffer.writeVec<MemoryNode>(this.memories, (mem:MemoryNode) => {
+      mem.store(sectionsBuffer)
+    })
+    buffer.append(sectionsBuffer)
   }
 }
 
@@ -482,6 +494,72 @@ class ImportDescNode {
   }
 }
 
+class MemoryNode {
+  type?:MemoryTypeNode
+
+  load(buffer:Buffer) {
+    this.type = new MemoryTypeNode()
+    this.type.load(buffer)
+  }
+
+  store(buffer:Buffer) {
+    if (this.type === undefined) {
+      throw new Error("invalid memory")
+    }
+
+    this.type.store(buffer)
+  }
+}
+
+class MemoryTypeNode {
+  limits?:LimitsNode
+
+  load(buffer:Buffer) {
+    this.limits = new LimitsNode()
+    this.limits.load(buffer)
+  }
+
+  store(buffer:Buffer) {
+    if (this.limits === undefined) {
+      throw new Error("invalid limits")
+    }
+
+    this.limits.store(buffer)
+  }
+}
+
+class LimitsNode {
+  min?:number
+  max?:number
+
+  load(buffer:Buffer) {
+    const tag = buffer.readByte()
+    if (tag === 0x00) {
+      this.min = buffer.readU32()
+    } else if (tag === 0x01) {
+      this.min = buffer.readU32()
+      this.max = buffer.readU32()
+    } else {
+      throw new Error(`invalid limits: ${tag}`)
+    }
+  }
+
+  store(buffer:Buffer) {
+    if (this.min === undefined) {
+      throw new Error("invalid limits")
+    }
+
+    if (this.max === undefined) {
+      buffer.writeByte(0x00)
+      buffer.writeU32(this.min)
+    } else {
+      buffer.writeByte(0x01)
+      buffer.writeU32(this.min)
+      buffer.writeU32(this.max)
+    }
+  }
+}
+
 class GlobalNode {
   globalType?:GlobalTypeNode
   expr?:ExprNode
@@ -606,6 +684,10 @@ export class InstrNode {
       [Op.Br]: BrInstrNode,
       [Op.BrIf]: BrIfInstrNode,
       [Op.Call]: CallInstrNode,
+      [Op.GlobalGet]: GlobalGetInstrNode,
+      [Op.GlobalSet]: GlobalSetInstrNode,
+      [Op.I32Load]: I32LoadInstrNode,
+      [Op.I32Store]: I32StoreInstrNode,
       [Op.I32Const]: I32ConstInstrNode,
       [Op.I32Eqz]: I32EqzInstrNode,
       [Op.I32LtS]: I32LtSInstrNode,
@@ -616,8 +698,6 @@ export class InstrNode {
       [Op.LocalGet]: LocalGetInstrNode,
       [Op.LocalSet]: LocalSetInstrNode,
       [Op.LocalTee]: LocalTeeInstrNode,
-      [Op.GlobalGet]: GlobalGetInstrNode,
-      [Op.GlobalSet]: GlobalSetInstrNode,
     }[opcode]
     if (!klass) return undefined
     return new klass(opcode)
@@ -845,6 +925,61 @@ export class GlobalSetInstrNode extends InstrNode {
   }
 }
 
+export class I32LoadInstrNode extends InstrNode {
+  memarg!:MemArgNode
+
+  load(buffer:Buffer) {
+    this.memarg = new MemArgNode()
+    this.memarg.load(buffer)
+  }
+
+  store(buffer:Buffer) {
+    if (this.memarg === undefined) {
+      throw new Error("invalid i32.load")
+    }
+
+    super.store(buffer)
+    this.memarg.store(buffer)
+  }
+}
+
+export class I32StoreInstrNode extends InstrNode {
+  memarg!:MemArgNode
+
+  load(buffer:Buffer) {
+    this.memarg = new MemArgNode()
+    this.memarg.load(buffer)
+  }
+
+  store(buffer:Buffer) {
+    if (this.memarg === undefined) {
+      throw new Error("invalid i32.store")
+    }
+
+    super.store(buffer)
+    this.memarg.store(buffer)
+  }
+}
+
+class MemArgNode {
+  align?:number
+  offset?:number
+
+  load(buffer:Buffer) {
+    this.align = buffer.readU32()
+    this.offset = buffer.readU32()
+  }
+
+  store(buffer:Buffer) {
+    if (this.align === undefined || this.offset === undefined) {
+      throw new Error("invalid memarg")
+    }
+
+    buffer.writeU32(this.align)
+    buffer.writeU32(this.offset)
+  }
+}
+
 export class I32ConstInstrNode extends InstrNode {
   num!: number
 
@@ -928,6 +1063,8 @@ const Op = {
   LocalTee: 0x22,
   GlobalGet: 0x23,
   GlobalSet: 0x24,
+  I32Load: 0x28,
+  I32Store: 0x36,
   I32Const: 0x41,
   I32Eqz: 0x45,
   I32LtS: 0x48,

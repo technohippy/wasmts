@@ -1,6 +1,6 @@
 // deno test --allow-read 
 import { assert, assertEquals } from "https://deno.land/std@0.93.0/testing/asserts.ts"
-import { Buffer } from "../src/core/buffer.ts"
+import { Buffer, Memory } from "../src/core/buffer.ts"
 import { ModuleNode } from "../src/core/node.ts"
 import { GlobalValue } from "../src/core/instance.ts"
 
@@ -68,6 +68,12 @@ Deno.test("load start.wasm", async () => {
   assertEquals(5, mod.sections.length)
 })
 
+Deno.test("load memory.wasm", async () => {
+  const [mod] = await loadModule("./test/data/wasm/memory.wasm")
+  assert(true, "no error")
+  assertEquals(7, mod.sections.length)
+})
+
 // store
 
 Deno.test("store module.wasm", async () => {
@@ -128,6 +134,13 @@ Deno.test("store global.wasm", async () => {
 
 Deno.test("store start.wasm", async () => {
   const [mod, inBuffer] = await loadModule("./test/data/wasm/start.wasm")
+  const outBuffer = new Buffer({buffer:new ArrayBuffer(1024)})
+  mod.store(outBuffer)
+  assertEquals(inBuffer.toString(), outBuffer.toString())
+})
+
+Deno.test("store memory.wasm", async () => {
+  const [mod, inBuffer] = await loadModule("./test/data/wasm/memory.wasm")
   const outBuffer = new Buffer({buffer:new ArrayBuffer(1024)})
   mod.store(outBuffer)
   assertEquals(inBuffer.toString(), outBuffer.toString())
@@ -243,4 +256,21 @@ Deno.test("invoke start.wasm", async () => {
     }
   })
   assertEquals(100, logs[0])
+})
+
+Deno.test("invoke memory.wasm", async () => {
+  const [mod] = await loadModule("./test/data/wasm/memory.wasm")
+  const inst = mod.instantiate()
+  assertEquals(99, inst.exports.get_ptr())
+})
+
+Deno.test("invoke importmemory.wasm", async () => {
+  const [mod] = await loadModule("./test/data/wasm/importmemory.wasm")
+  const importObject = {
+    env: {
+      mem: Memory.build(1)
+    }
+  }
+  const inst = mod.instantiate(importObject)
+  assertEquals(42, importObject.env.mem.readI32(0))
 })

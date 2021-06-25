@@ -3,7 +3,7 @@
 - [ ] importObject対応
   - [x] 関数
   - [x] Global
-  - [ ] Memory
+  - [x] Memory
   - [ ] Table
 - [ ] セクション
   - [x] Start
@@ -20,3 +20,4 @@
 - [ ] cmdをもう少しちゃんとする
 - [ ] WASI対応
 - [ ] instance.tsのimportをどうにかする
+- [ ] バッファの長さが1024で固定されているのをどうにかする
