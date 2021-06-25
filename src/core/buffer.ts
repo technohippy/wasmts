@@ -26,6 +26,10 @@ export class Buffer {
     return new Buffer({buffer:this.#buffer.slice(0, this.cursor)})
   }
 
+  rest():Buffer {
+    return new Buffer({buffer:this.#buffer.slice(this.cursor)})
+  }
+
   peek(pos:number=0): number {
     return this.#view.getUint8(pos)
   }
@@ -59,7 +63,7 @@ export class Buffer {
     return new Buffer(this.readBytes(size))
   }
 
-  readU32(): number{
+  readU32(): number {
     let result = 0;
     let shift = 0;
     while (true) {
@@ -70,6 +74,10 @@ export class Buffer {
         return result;
       }
     }
+  }
+
+  readIndex(): number {
+    return this.readU32()
   }
 
   readS32(): number {
@@ -162,6 +170,10 @@ export class Buffer {
     }
     const u8a = new Uint8Array(result)
     this.writeBytes(u8a.buffer)
+  }
+
+  writeIndex(value:number) {
+    this.writeU32(value)
   }
 
   writeS32(value:number) {

@@ -335,20 +335,33 @@ class CodeSectionNode extends SectionNode {
 }
 
 class DataSectionNode extends SectionNode {
+  datas: DataNode[] = []
+
   load(buffer:Buffer) {
+    this.datas = buffer.readVec<DataNode>(():DataNode => {
+      const data = new DataNode()
+      data.load(buffer)
+      return data
+    })
   }
 
   store(buffer:Buffer) {
-    throw new Error("not yet")
+    buffer.writeByte(11) // TODO: ID
+    const sectionsBuffer = new Buffer({buffer:new ArrayBuffer(1024)}) // TODO: 1024 may not be enough.
+    sectionsBuffer.writeVec(this.datas, (data:DataNode) => {
+      data.store(sectionsBuffer)
+    })
+    buffer.append(sectionsBuffer)
   }
 }
 
 class DataCountSectionNode extends SectionNode {
   load(buffer:Buffer) {
+    console.warn("ignore datacount section")
   }
 
   store(buffer:Buffer) {
-    throw new Error("not yet")
+    console.warn("ignore datacount section")
   }
 }
 
@@ -388,6 +401,21 @@ class ResultTypeNode {
     buffer.writeVec<ValType>(this.valTypes, (valType:ValType) => {
       buffer.writeByte(valType)
     })
+  }
+}
+
+class StartNode {
+  funcId?:FuncIdx
+
+  load(buffer:Buffer) {
+    this.funcId = buffer.readByte() as FuncIdx
+  }
+
+  store(buffer:Buffer) {
+    if (this.funcId === undefined) {
+      throw new Error("invalid funcId")
+    }
+    buffer.writeByte(this.funcId)
   }
 }
 
@@ -478,19 +506,44 @@ class ImportNode {
 class ImportDescNode {
   tag?:number
   index?:number
+  //tableType?:TableTypeNode
+  memType?:MemoryTypeNode
+  globalType?:GlobalTypeNode
 
   load(buffer:Buffer) {
     this.tag = buffer.readByte()
-    this.index = buffer.readU32()
+    if (this.tag === 0x00) {
+      this.index = buffer.readU32()
+    } else if (this.tag === 0x01) {
+      throw new Error("not yet")
+    } else if (this.tag === 0x02) {
+      this.memType = new MemoryTypeNode()
+      this.memType.load(buffer)
+    } else if (this.tag === 0x03) {
+      this.globalType = new GlobalTypeNode()
+      this.globalType.load(buffer)
+    } else {
+      throw new Error(`invalid import desc:${this.tag}`)
+    }
   }
 
   store(buffer:Buffer) {
-    if (this.tag === undefined || this.index === undefined) {
-      throw new Error("invalid exportdesc")
+    if (this.tag === undefined) {
+      throw new Error("invalid importdesc")
     }
 
     buffer.writeByte(this.tag)
-    buffer.writeU32(this.index)
+    if (this.tag === 0x00) {
+      buffer.writeU32(this.index!)
+    } else if (this.tag === 0x01) {
+      throw new Error("not yet")
+    } else if (this.tag === 0x02) {
+      this.memType!.store(buffer)
+    } else if (this.tag === 0x03) {
+      this.globalType!.store(buffer)
+    } else {
+      throw new Error(`invalid import desc:${this.tag}`)
+    }
   }
 }
 
@@ -1014,18 +1067,64 @@ export class I32AddInstrNode extends InstrNode {
 export class I32RemSInstrNode extends InstrNode {
 }
 
-class StartNode {
-  funcId?:FuncIdx
+class DataNode {
+  #active = false
+  tag?: number
+  memidx?: MemIdx
+  expr?: ExprNode
+  bytes?: number[]
 
   load(buffer:Buffer) {
-    this.funcId = buffer.readByte() as FuncIdx
+    this.tag = buffer.readByte()
+    if (this.tag === 0x00) {
+      this.#active = true
+      this.expr = new ExprNode()
+      this.expr.load(buffer)
+      this.bytes = buffer.readVec<number>(():number => {
+        return buffer.readByte()
+      })
+    } else if (this.tag === 0x01) {
+      this.#active = false
+      this.bytes = buffer.readVec<number>(():number => {
+        return buffer.readByte()
+      })
+    } else if (this.tag === 0x02) {
+      this.#active = true
+      this.memidx = buffer.readIndex()
+      this.expr = new ExprNode()
+      this.expr.load(buffer)
+      this.bytes = buffer.readVec<number>(():number => {
+        return buffer.readByte()
+      })
+    } else {
+      throw new Error(`invalid data: ${this.tag}`)
+    }
   }
 
   store(buffer:Buffer) {
-    if (this.funcId === undefined) {
-      throw new Error("invalid funcId")
+    if (this.bytes === undefined) {
+      throw new Error("invalid data")
     }
-    buffer.writeByte(this.funcId)
+
+    buffer.writeByte(this.tag!)
+    if (this.tag === 0x00) {
+      this.expr!.store(buffer)
+      buffer.writeVec(this.bytes, (byte:number) => {
+        buffer.writeByte(byte)
+      })
+    } else if (this.tag === 0x01) {
+      buffer.writeVec(this.bytes, (byte:number) => {
+        buffer.writeByte(byte)
+      })
+    } else if (this.tag === 0x02) {
+      buffer.writeIndex(this.memidx!)
+      this.expr!.store(buffer)
+      buffer.writeVec(this.bytes, (byte:number) => {
+        buffer.writeByte(byte)
+      })
+    } else {
+      throw new Error(`invalid data: ${this.tag}`)
+    }
   }
 }
 
