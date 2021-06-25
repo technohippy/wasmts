@@ -1,20 +1,16 @@
 import { ValType } from "./node.ts"
 
 export class Buffer {
-  #cursor = 0
+  cursor = 0
   #buffer: ArrayBuffer
   #view: DataView
-
-  get cursor(): number {
-    return this.#cursor
-  }
 
   get buffer(): ArrayBuffer {
     return this.#buffer
   }
 
   get eof(): boolean {
-    return this.#buffer.byteLength <= this.#cursor
+    return this.#buffer.byteLength <= this.cursor
   }
 
   constructor({buffer}:{buffer:ArrayBuffer}) {
@@ -26,12 +22,8 @@ export class Buffer {
     return this.#view
   }
 
-  protected setCursor(c:number) {
-    this.#cursor = c
-  }
-
   truncate():Buffer {
-    return new Buffer({buffer:this.#buffer.slice(0, this.#cursor)})
+    return new Buffer({buffer:this.#buffer.slice(0, this.cursor)})
   }
 
   peek(pos:number=0): number {
@@ -54,16 +46,16 @@ export class Buffer {
   }
 
   readBytes(size:number): Uint8Array {
-    if (this.#buffer.byteLength < this.#cursor+size) {
+    if (this.#buffer.byteLength < this.cursor+size) {
       return new Uint8Array(0)
     }
 
-    const slice = this.#buffer.slice(this.#cursor, this.#cursor+size)
-    this.#cursor += size
+    const slice = this.#buffer.slice(this.cursor, this.cursor+size)
+    this.cursor += size
     return new Uint8Array(slice)
   }
 
-  readBuffer(size:number=this.#buffer.byteLength-this.#cursor): Buffer {
+  readBuffer(size:number=this.#buffer.byteLength-this.cursor): Buffer {
     return new Buffer(this.readBytes(size))
   }
 
@@ -153,7 +145,7 @@ export class Buffer {
   }
 
   writeByte(byte:number) {
-    this.#view.setUint8(this.#cursor++, byte)
+    this.#view.setUint8(this.cursor++, byte)
   }
 
   writeU32(value:number) {
@@ -245,7 +237,7 @@ export class Buffer {
   toString(): string {
     let out = ""
     const u8s = new Uint8Array(this.#buffer)
-    for (let i = 0; i < this.#cursor; i++) {
+    for (let i = 0; i < this.cursor; i++) {
       let h = u8s[i].toString(16)
       if (h.length === 1) h = `0${h}`
       if (i % 16 === 15) h += "\n"
@@ -264,7 +256,7 @@ export class StackBuffer extends Buffer {
     }
 
     const slice = this.buffer.slice(this.cursor-size, this.cursor)
-    this.setCursor(this.cursor-size)
+    this.cursor -= size
     return new Uint8Array(slice).reverse()
   }
 
@@ -273,5 +265,24 @@ export class StackBuffer extends Buffer {
     for (let byte of u8s) {
       this.writeByte(byte)
     }
+  }
+}
+
+export class Memory {
+  #buffer: Buffer
+
+  constructor(limits:{min?:number, max?:number}) {
+    const {min} = limits
+    this.#buffer = new Buffer(new Uint8Array(min! * 64 * 1024))
+  }
+
+  readI32(offset:number):number {
+    this.#buffer.cursor = offset
+    return this.#buffer.readI32()
+  }
+
+  writeI32(offset:number, value:number) {
+    this.#buffer.cursor = offset
+    this.#buffer.writeI32(value)
   }
 }

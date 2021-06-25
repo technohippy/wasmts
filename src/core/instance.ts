@@ -1,12 +1,13 @@
 import { 
   ModuleNode, FuncTypeNode, CodeNode, InstrNode, NopInstrNode, 
   BlockInstrNode, LoopInstrNode, IfInstrNode, BrInstrNode, 
-  BrIfInstrNode, CallInstrNode, I32ConstInstrNode, I32EqzInstrNode, 
-  I32LtSInstrNode, I32GeSInstrNode, I32GeUInstrNode, I32AddInstrNode, 
-  I32RemSInstrNode, LocalGetInstrNode, LocalSetInstrNode, LocalTeeInstrNode,
-  GlobalGetInstrNode, GlobalSetInstrNode, GlobalTypeNode, ExprNode, ValType,
+  BrIfInstrNode, CallInstrNode, GlobalGetInstrNode, GlobalSetInstrNode, 
+  I32LoadInstrNode, I32StoreInstrNode, I32ConstInstrNode, 
+  I32EqzInstrNode, I32LtSInstrNode, I32GeSInstrNode, I32GeUInstrNode,
+  I32AddInstrNode, I32RemSInstrNode, LocalGetInstrNode, LocalSetInstrNode, 
+  LocalTeeInstrNode, GlobalTypeNode, ExprNode, ValType,
 } from "./node.ts"
-import { Buffer, StackBuffer } from "./buffer.ts"
+import { Buffer, StackBuffer, Memory } from "./buffer.ts"
 
 export class Instance {
   #module: ModuleNode
@@ -61,6 +62,17 @@ export class Instance {
     functionSection?.typeIdxs.forEach((typeIdx, i) => {
       const func = new WasmFunction(typeSection!.funcTypes[typeIdx], codeSection!.codes[i])
       this.#context.functions.push(func)
+    })
+
+    // table
+
+    // memory
+    const memorySection = this.#module.memorySection
+    memorySection?.memories.forEach(mem => {
+      if (mem.type?.limits === undefined) {
+        throw new Error("invalid memory")
+      }
+      this.#context.memories.push(new Memory(mem.type.limits))
     })
 
     // global
@@ -180,6 +192,14 @@ class Instruction {
       return new BrIfInstruction(node, parent)
     } else if (node instanceof CallInstrNode) {
       return new CallInstruction(node, parent)
+    } else if (node instanceof GlobalGetInstrNode) {
+      return new GlobalGetInstruction(node, parent)
+    } else if (node instanceof GlobalSetInstrNode) {
+      return new GlobalSetInstruction(node, parent)
+    } else if (node instanceof I32LoadInstrNode) {
+      return new I32LoadInstruction(node, parent)
+    } else if (node instanceof I32StoreInstrNode) {
+      return new I32StoreInstruction(node, parent)
     } else if (node instanceof I32ConstInstrNode) {
       return new I32ConstInstruction(node, parent)
     } else if (node instanceof I32EqzInstrNode) {
@@ -200,10 +220,6 @@ class Instruction {
       return new LocalSetInstruction(node, parent)
     } else if (node instanceof LocalTeeInstrNode) {
       return new LocalTeeInstruction(node, parent)
-    } else if (node instanceof GlobalGetInstrNode) {
-      return new GlobalGetInstruction(node, parent)
-    } else if (node instanceof GlobalSetInstrNode) {
-      return new GlobalSetInstruction(node, parent)
     } else {
       throw new Error(`invalid node: ${node.constructor.name}`)
     }
@@ -374,6 +390,42 @@ class CallInstruction extends Instruction {
     if (result) {
       context.stack.writeI32(result) // TODO: type
     }
+    return this.next
+  }
+}
+
+class I32LoadInstruction extends Instruction {
+  #offset: number
+  #align: number
+
+  constructor(node:I32LoadInstrNode, parent?:Instruction) {
+    super(parent)
+    this.#offset = node.memarg.offset!
+    this.#align = node.memarg.align!
+  }
+
+  invoke(context:Context):Instruction | undefined {
+    if (context.debug) console.warn("invoke i32.load")
+    const memory = context.memories[0]
+    context.stack.writeI32(memory.readI32(this.#offset))
+    return this.next
+  }
+}
+
+class I32StoreInstruction extends Instruction {
+  #offset: number
+  #align: number
+
+  constructor(node:I32StoreInstrNode, parent?:Instruction) {
+    super(parent)
+    this.#offset = node.memarg.offset!
+    this.#align = node.memarg.align!
+  }
+
+  invoke(context:Context):Instruction | undefined {
+    if (context.debug) console.warn("invoke i32.load")
+    const memory = context.memories[0]
+    memory.writeI32(this.#offset, context.stack.readI32())
     return this.next
   }
 }
@@ -676,21 +728,16 @@ class JsFuncInstruction extends Instruction {
 
 export class Context {
   stack:Buffer
-  functions:WasmFunction[]
-  globals:GlobalValue[]
-  locals:LocalValue[]
+  functions:WasmFunction[] = []
+  memories:Memory[] = []
+  //tables:Table[] = []
+  globals:GlobalValue[] = []
+  locals:LocalValue[] = []
 
   debug:boolean = false
 
   constructor() {
     this.stack = new StackBuffer({buffer:new ArrayBuffer(1024)}) // TODO
-    this.functions = []
-    /*
-    this.memories = []
-    this.tables = []
-    */
-    this.globals = []
-    this.locals = []
   }
 
   clearStack() {

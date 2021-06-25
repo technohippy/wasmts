@@ -257,3 +257,9 @@ Deno.test("invoke start.wasm", async () => {
   })
   assertEquals(100, logs[0])
 })
+
+Deno.test("invoke memory.wasm", async () => {
+  const [mod] = await loadModule("./test/data/wasm/memory.wasm")
+  const inst = mod.instantiate()
+  assertEquals(99, inst.exports.get_ptr())
+})
