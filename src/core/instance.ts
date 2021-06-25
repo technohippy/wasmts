@@ -105,6 +105,18 @@ export class Instance {
     if (startSection) {
       this.#context.functions[startSection.start!.funcId!].invoke(this.#context)
     }
+
+    // data
+    const dataSection = this.#module.dataSection
+    dataSection?.datas.forEach(data => {
+      const memory = this.#context.memories[data.memidx || 0]
+      const instrs = new InstructionSeq(data.expr!.instrs)
+      instrs.invoke(this.#context)
+      let offset = this.#context.stack.readU32()
+      data.bytes?.forEach(b => {
+        memory.writeByte(offset++, b)
+      })
+    })
   }
 }
 
