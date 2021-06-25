@@ -1,4 +1,4 @@
-;; the art of webassembly
+;; from "the art of webassembly"
 (module
   (memory 1)
   (global $pointer i32 (i32.const 128))
@@ -13,6 +13,6 @@
   (func (export "get_ptr") (result i32)
     (i32.load (global.get $pointer)) ;; return value at location $pointer
   )
-  
+
   (start $init)
 )

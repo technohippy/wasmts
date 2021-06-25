@@ -48,7 +48,10 @@ export class Instance {
         const jsFuncType = typeSection!.funcTypes[im.importDesc.index!]
         const func = new WasmFunction(jsFuncType, new JsFuncInstruction(jsFuncType, jsFunc))
         this.#context.functions.push(func)
-      } else if (im.importDesc?.tag === 0x03) { // TODO: globalidx
+      } else if (im.importDesc?.tag === 0x02) { // TODO: memtype
+        const mem = this.#importObject[im.moduleName!][im.objectName!] as Memory
+        this.#context.memories.push(mem)
+      } else if (im.importDesc?.tag === 0x03) { // TODO: globaltype
         const globalValue = this.#importObject[im.moduleName!][im.objectName!] as GlobalValue
         this.#context.globals.push(globalValue)
       } else {

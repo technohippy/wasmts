@@ -271,6 +271,10 @@ export class StackBuffer extends Buffer {
 export class Memory {
   #buffer: Buffer
 
+  static build(size:number): Memory {
+    return new Memory({min:size})
+  }
+
   constructor(limits:{min?:number, max?:number}) {
     const {min} = limits
     this.#buffer = new Buffer(new Uint8Array(min! * 64 * 1024))

@@ -1,6 +1,6 @@
 // deno test --allow-read 
 import { assert, assertEquals } from "https://deno.land/std@0.93.0/testing/asserts.ts"
-import { Buffer } from "../src/core/buffer.ts"
+import { Buffer, Memory } from "../src/core/buffer.ts"
 import { ModuleNode } from "../src/core/node.ts"
 import { GlobalValue } from "../src/core/instance.ts"
 
@@ -262,4 +262,15 @@ Deno.test("invoke memory.wasm", async () => {
   const [mod] = await loadModule("./test/data/wasm/memory.wasm")
   const inst = mod.instantiate()
   assertEquals(99, inst.exports.get_ptr())
+})
+
+Deno.test("invoke importmemory.wasm", async () => {
+  const [mod] = await loadModule("./test/data/wasm/importmemory.wasm")
+  const importObject = {
+    env: {
+      mem: Memory.build(1)
+    }
+  }
+  const inst = mod.instantiate(importObject)
+  assertEquals(42, importObject.env.mem.readI32(0))
 })

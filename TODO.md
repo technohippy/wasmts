@@ -3,7 +3,7 @@
 - [ ] importObject対応
   - [x] 関数
   - [x] Global
-  - [ ] Memory
+  - [x] Memory
   - [ ] Table
 - [ ] セクション
   - [x] Start
