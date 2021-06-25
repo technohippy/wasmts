@@ -287,3 +287,17 @@ Deno.test("invoke importmemory.wasm", async () => {
   const inst = mod.instantiate(importObject)
   assertEquals(42, importObject.env.mem.readI32(0))
 })
+
+Deno.test("invoke data.wasm", async () => {
+  const [mod] = await loadModule("./test/data/wasm/data.wasm")
+  const importObject = {
+    env: {
+      mem: Memory.build(1)
+    }
+  }
+  const inst = mod.instantiate(importObject)
+  const hw = "hello world!"
+  const bytes = importObject.env.mem.readBytes(0, hw.length)
+  const s = new TextDecoder("utf-8").decode(bytes)
+  assertEquals(hw, s)
+})

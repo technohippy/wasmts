@@ -292,9 +292,19 @@ export class Memory {
     this.#buffer = new Buffer(new Uint8Array(min! * 64 * 1024))
   }
 
+  readBytes(offset:number, size:number):Uint8Array {
+    this.#buffer.cursor = offset
+    return this.#buffer.readBytes(size)
+  }
+
   readI32(offset:number):number {
     this.#buffer.cursor = offset
     return this.#buffer.readI32()
+  }
+
+  writeByte(offset:number, byte:number) {
+    this.#buffer.cursor = offset
+    this.#buffer.writeByte(byte)
   }
 
   writeI32(offset:number, value:number) {
