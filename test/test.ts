@@ -314,3 +314,11 @@ Deno.test("invoke data.wasm", async () => {
   const s = new TextDecoder("utf-8").decode(bytes)
   assertEquals(hw, s)
 })
+
+Deno.test("invoke table.wasm", async () => {
+  const [mod] = await loadModule("./test/data/wasm/table.wasm")
+  const inst = mod.instantiate()
+  assertEquals(1, inst.exports.call_f(0))
+  assertEquals(2, inst.exports.call_f(1))
+  assertEquals(3, inst.exports.call_f(2))
+})

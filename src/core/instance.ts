@@ -1,8 +1,8 @@
 import { 
   ModuleNode, FuncTypeNode, CodeNode, InstrNode, NopInstrNode, 
   BlockInstrNode, LoopInstrNode, IfInstrNode, BrInstrNode, 
-  BrIfInstrNode, CallInstrNode, GlobalGetInstrNode, GlobalSetInstrNode, 
-  I32LoadInstrNode, I32StoreInstrNode, I32ConstInstrNode, 
+  BrIfInstrNode, CallInstrNode, CallIndirectInstrNode, GlobalGetInstrNode, 
+  GlobalSetInstrNode, I32LoadInstrNode, I32StoreInstrNode, I32ConstInstrNode, 
   I32EqzInstrNode, I32LtSInstrNode, I32GeSInstrNode, I32GeUInstrNode,
   I32AddInstrNode, I32RemSInstrNode, LocalGetInstrNode, LocalSetInstrNode, 
   LocalTeeInstrNode, GlobalTypeNode, ExprNode, ValType,
@@ -68,6 +68,13 @@ export class Instance {
     })
 
     // table
+    const tableSection = this.#module.tableSection
+    tableSection?.tables.forEach((tab, i) => {
+      if (tab.type === undefined) {
+        throw new Error("invalid table")
+      }
+      this.#context.tables.push(new Table(tab.type.refType!, tab.type.limits!))
+    })
 
     // memory
     const memorySection = this.#module.memorySection
@@ -105,6 +112,22 @@ export class Instance {
     if (startSection) {
       this.#context.functions[startSection.start!.funcId!].invoke(this.#context)
     }
+
+    // element
+    const elementSection = this.#module.elementSection
+    elementSection?.elements.forEach((elem, i) => {
+      if (elem.tag !== 0x00) {
+        throw new Error("not yet")
+      }
+      const table = this.#context.tables[elem.tableIdx || 0]
+      const instrs = new InstructionSeq(elem.expr!.instrs)
+      instrs.invoke(this.#context)
+      const offset = this.#context.stack.readU32()
+      elem.funcIdxs!.forEach((funcIdx, i) => {
+        const element = table.elementAt(offset+i)
+        element.func = this.#context.functions[funcIdx]
+      })
+    })
 
     // data
     const dataSection = this.#module.dataSection
@@ -207,6 +230,8 @@ class Instruction {
       return new BrIfInstruction(node, parent)
     } else if (node instanceof CallInstrNode) {
       return new CallInstruction(node, parent)
+    } else if (node instanceof CallIndirectInstrNode) {
+      return new CallIndirectInstruction(node, parent)
     } else if (node instanceof GlobalGetInstrNode) {
       return new GlobalGetInstruction(node, parent)
     } else if (node instanceof GlobalSetInstrNode) {
@@ -402,6 +427,33 @@ class CallInstruction extends Instruction {
     if (context.debug) console.warn("invoke call")
     const func = context.functions[this.#funcIdx]
     const result = func.invoke(context)
+    if (result) {
+      context.stack.writeI32(result) // TODO: type
+    }
+    return this.next
+  }
+}
+
+class CallIndirectInstruction extends Instruction {
+  #typeIdx: number
+  #tableIdx: number
+
+  constructor(node:CallIndirectInstrNode, parent?:Instruction) {
+    super(parent)
+    this.#typeIdx = node.typeIdx
+    this.#tableIdx = node.tableIdx
+  }
+
+  invoke(context:Context):Instruction | undefined {
+    if (context.debug) console.warn("invoke call_indirect")
+
+    const elemIdx = context.stack.readI32()
+    const table = context.tables[this.#tableIdx]
+    const elem = table.elementAt(elemIdx)
+    if (elem.func === undefined) {
+      throw new Error("not yet")
+    }
+    const result = elem.func.invoke(context)
     if (result) {
       context.stack.writeI32(result) // TODO: type
     }
@@ -741,11 +793,38 @@ class JsFuncInstruction extends Instruction {
   }
 }
 
+class Table {
+  #refType:number
+  #elements:TableElement[] = []
+
+  constructor(refType:number, limits:{min?:number, max?:number}) {
+    this.#refType = refType
+    for (let i = 0; i < limits.min!; i++) {
+      this.#elements.push(new TableElement())
+    }
+
+    if (this.#refType !== 0x70) { // funcref
+      throw new Error(`invalid reftype:${this.#refType}`)
+    }
+  }
+
+  elementAt(index:number):TableElement {
+    if (this.#elements.length <= index) {
+      throw new Error("invalid index")
+    }
+    return this.#elements[index]
+  }
+}
+
+class TableElement {
+  func?: WasmFunction
+}
+
 export class Context {
   stack:Buffer
   functions:WasmFunction[] = []
   memories:Memory[] = []
-  //tables:Table[] = []
+  tables:Table[] = []
   globals:GlobalValue[] = []
   locals:LocalValue[] = []
 
