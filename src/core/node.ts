@@ -651,7 +651,7 @@ class ImportNode {
 class ImportDescNode {
   tag?:number
   index?:number
-  //tableType?:TableTypeNode
+  tableType?:TableTypeNode
   memType?:MemoryTypeNode
   globalType?:GlobalTypeNode
 
@@ -660,7 +660,8 @@ class ImportDescNode {
     if (this.tag === 0x00) {
       this.index = buffer.readU32()
     } else if (this.tag === 0x01) {
-      throw new Error("not yet")
+      this.tableType = new TableTypeNode()
+      this.tableType.load(buffer)
     } else if (this.tag === 0x02) {
       this.memType = new MemoryTypeNode()
       this.memType.load(buffer)

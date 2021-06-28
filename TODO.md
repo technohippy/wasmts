@@ -4,10 +4,10 @@
   - [x] 関数
   - [x] Global
   - [x] Memory
-  - [ ] Table
-- [ ] セクション
+  - [x] Table
+- [x] セクション
   - [x] Start
-  - [ ] Element
+  - [x] Element
   - [x] Data
   - [ ] DataCount
 - [ ] データ型追加

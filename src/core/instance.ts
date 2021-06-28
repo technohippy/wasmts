@@ -39,6 +39,9 @@ export class Instance {
 
   compile() {
     const typeSection = this.#module.typeSection
+    if (typeSection?.funcTypes !== undefined) {
+      this.#context.types = typeSection.funcTypes
+    }
 
     // import
     const importSection = this.#module.importSection
@@ -48,6 +51,9 @@ export class Instance {
         const jsFuncType = typeSection!.funcTypes[im.importDesc.index!]
         const func = new WasmFunction(jsFuncType, new JsFuncInstruction(jsFuncType, jsFunc))
         this.#context.functions.push(func)
+      } else if (im.importDesc?.tag === 0x01) { // TODO: tabletype
+        const tab = this.#importObject[im.moduleName!][im.objectName!] as Table
+        this.#context.tables.push(tab)
       } else if (im.importDesc?.tag === 0x02) { // TODO: memtype
         const mem = this.#importObject[im.moduleName!][im.objectName!] as Memory
         this.#context.memories.push(mem)
@@ -147,6 +153,14 @@ class WasmFunction {
   #funcType:FuncTypeNode
   #code?:CodeNode
   #instructions:InstructionSeq | JsFuncInstruction
+
+  set funcType(type:FuncTypeNode) {
+    this.#funcType = type
+    if (this.#instructions instanceof JsFuncInstruction) {
+      const func = this.#instructions as JsFuncInstruction
+      func.funcType = type
+    }
+  }
 
   constructor(funcType:FuncTypeNode, code:CodeNode | JsFuncInstruction) {
     this.#funcType = funcType
@@ -453,6 +467,7 @@ class CallIndirectInstruction extends Instruction {
     if (elem.func === undefined) {
       throw new Error("not yet")
     }
+    elem.func.funcType = context.types[this.#typeIdx]
     const result = elem.func.invoke(context)
     if (result) {
       context.stack.writeI32(result) // TODO: type
@@ -767,12 +782,12 @@ export class GlobalValue {
 }
 
 class JsFuncInstruction extends Instruction {
-  #funcType:FuncTypeNode
+  funcType:FuncTypeNode
   #func:Function
 
   constructor(funcType:FuncTypeNode, func:Function) {
     super()
-    this.#funcType = funcType
+    this.funcType = funcType
     this.#func = func
   }
 
@@ -784,7 +799,7 @@ class JsFuncInstruction extends Instruction {
     const result = this.#func.apply(null, args)
 
     // write result
-    const valType = this.#funcType.resultType?.valTypes[0]
+    const valType = this.funcType.resultType?.valTypes[0]
     if (valType) {
       context.stack.writeByValType(valType, result)
     }
@@ -793,18 +808,25 @@ class JsFuncInstruction extends Instruction {
   }
 }
 
-class Table {
+export class Table {
   #refType:number
   #elements:TableElement[] = []
+
+  static build(funcs:Function[]):Table {
+    const tab = new Table(0x6f, {min:funcs.length})
+    for (let i = 0; i < funcs.length; i++) {
+      const elem = tab.elementAt(i)
+      const jsFunc = funcs[i]
+      const dummyType = new FuncTypeNode() // update at call_indirect
+      elem.func = new WasmFunction(dummyType, new JsFuncInstruction(dummyType, jsFunc))
+    }
+    return tab
+  }
 
   constructor(refType:number, limits:{min?:number, max?:number}) {
     this.#refType = refType
     for (let i = 0; i < limits.min!; i++) {
       this.#elements.push(new TableElement())
-    }
-
-    if (this.#refType !== 0x70) { // funcref
-      throw new Error(`invalid reftype:${this.#refType}`)
     }
   }
 
@@ -827,6 +849,7 @@ export class Context {
   tables:Table[] = []
   globals:GlobalValue[] = []
   locals:LocalValue[] = []
+  types:FuncTypeNode[] = []
 
   debug:boolean = false
 

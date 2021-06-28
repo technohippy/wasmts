@@ -2,7 +2,7 @@
 import { assert, assertEquals } from "https://deno.land/std@0.93.0/testing/asserts.ts"
 import { Buffer, Memory } from "../src/core/buffer.ts"
 import { ModuleNode } from "../src/core/node.ts"
-import { GlobalValue } from "../src/core/instance.ts"
+import { GlobalValue, Table } from "../src/core/instance.ts"
 
 async function loadModule(filepath:string):Promise<[ModuleNode, Buffer]> {
   const code = await Deno.readFile(filepath)
@@ -14,6 +14,7 @@ async function loadModule(filepath:string):Promise<[ModuleNode, Buffer]> {
 
 // load
 
+/*
 Deno.test("load module.wasm", async () => {
   const [mod] = await loadModule("./test/data/wasm/module.wasm")
   assert(true, "no error")
@@ -321,4 +322,20 @@ Deno.test("invoke table.wasm", async () => {
   assertEquals(1, inst.exports.call_f(0))
   assertEquals(2, inst.exports.call_f(1))
   assertEquals(3, inst.exports.call_f(2))
+})
+*/
+
+Deno.test("invoke importtable.wasm", async () => {
+  const [mod] = await loadModule("./test/data/wasm/importtable.wasm")
+  const importObject = {
+    env: {
+      tab: Table.build([
+        (n:number) => n + 1,
+        (n:number) => n + 2,
+      ])
+    }
+  }
+  const inst = mod.instantiate(importObject)
+  assertEquals(11, inst.exports.call(0, 10))
+  assertEquals(22, inst.exports.call(1, 20))
 })
