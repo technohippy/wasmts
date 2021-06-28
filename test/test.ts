@@ -14,7 +14,6 @@ async function loadModule(filepath:string):Promise<[ModuleNode, Buffer]> {
 
 // load
 
-/*
 Deno.test("load module.wasm", async () => {
   const [mod] = await loadModule("./test/data/wasm/module.wasm")
   assert(true, "no error")
@@ -323,7 +322,6 @@ Deno.test("invoke table.wasm", async () => {
   assertEquals(2, inst.exports.call_f(1))
   assertEquals(3, inst.exports.call_f(2))
 })
-*/
 
 Deno.test("invoke importtable.wasm", async () => {
   const [mod] = await loadModule("./test/data/wasm/importtable.wasm")

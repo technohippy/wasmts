@@ -1,6 +1,6 @@
 # TODO
 
-- [ ] importObject対応
+- [x] importObject対応
   - [x] 関数
   - [x] Global
   - [x] Memory
@@ -16,7 +16,8 @@
   - [ ] f64
 - [ ] 未対応命令の追加
   - [ ] br_table
-- [ ] labelの扱いを仕様に合わせる
+- [ ] 細かいところをいろいろ仕様に合わせる
+  - [ ] labelの扱い
 - [ ] wasm構築用のメソッドを追加
 - [ ] cmdをもう少しちゃんとする
 - [ ] WASI対応
