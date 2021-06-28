@@ -215,11 +215,23 @@ class FunctionSectionNode extends SectionNode {
 }
 
 class TableSectionNode extends SectionNode {
+  tables:TableNode[] = []
+
   load(buffer:Buffer) {
+    this.tables = buffer.readVec<TableNode>(():TableNode => {
+      const tab = new TableNode()
+      tab.load(buffer)
+      return tab
+    })
   }
 
   store(buffer:Buffer) {
-    throw new Error("not yet")
+    buffer.writeByte(4) // TODO: ID
+    const sectionsBuffer = new Buffer({buffer:new ArrayBuffer(1024)}) // TODO: 1024 may not be enough.
+    sectionsBuffer.writeVec<MemoryNode>(this.tables, (tab:TableNode) => {
+      tab.store(sectionsBuffer)
+    })
+    buffer.append(sectionsBuffer)
   }
 }
 
@@ -305,11 +317,23 @@ class StartSectionNode extends SectionNode {
 }
 
 class ElementSectionNode extends SectionNode {
+  elements:ElementNode[] = []
+
   load(buffer:Buffer) {
+    this.elements = buffer.readVec<ElementNode>(():ElementNode => {
+      const elem = new ElementNode()
+      elem.load(buffer)
+      return elem
+    })
   }
 
   store(buffer:Buffer) {
-    throw new Error("not yet")
+    buffer.writeByte(9) // TODO: ID
+    const sectionsBuffer = new Buffer({buffer:new ArrayBuffer(1024)}) // TODO: 1024 may not be enough.
+    sectionsBuffer.writeVec(this.elements, (elem:ElementNode) => {
+      elem.store(sectionsBuffer)
+    })
+    buffer.append(sectionsBuffer)
   }
 }
 
@@ -416,6 +440,127 @@ class StartNode {
       throw new Error("invalid funcId")
     }
     buffer.writeByte(this.funcId)
+  }
+}
+
+class ElementNode {
+  mode?:number // TODO:仕様書が読めない
+  tag?:number
+  tableIdx?:TableIdx
+  expr?:ExprNode
+  exprs?:ExprNode[]
+  refType?:RefType
+  kind?:ElementKind
+  funcIdxs?:FuncIdx[]
+
+  load(buffer:Buffer) {
+    this.tag = buffer.readByte()
+    if (this.tag === 0x00) {
+      this.expr = new ExprNode()
+      this.expr.load(buffer)
+      this.funcIdxs = buffer.readVec<number>(():number => {
+        return buffer.readIndex()
+      })
+    } else if (this.tag === 0x01) {
+      this.kind = buffer.readByte() as ElementKind
+      this.funcIdxs = buffer.readVec<number>(():number => {
+        return buffer.readIndex()
+      })
+    } else if (this.tag === 0x02) {
+      this.tableIdx = buffer.readIndex()
+      this.expr = new ExprNode()
+      this.expr.load(buffer)
+      this.kind = buffer.readByte() as ElementKind
+      this.funcIdxs = buffer.readVec<number>(():number => {
+        return buffer.readIndex()
+      })
+    } else if (this.tag === 0x03) {
+      this.kind = buffer.readByte() as ElementKind
+      this.funcIdxs = buffer.readVec<number>(():number => {
+        return buffer.readIndex()
+      })
+    } else if (this.tag === 0x04) {
+      this.expr = new ExprNode()
+      this.expr.load(buffer)
+      this.exprs = buffer.readVec<ExprNode>(():ExprNode => {
+        const expr = new ExprNode()
+        expr.load(buffer)
+        return expr
+      })
+    } else if (this.tag === 0x05) {
+      this.refType = buffer.readByte() as RefType
+      this.exprs = buffer.readVec<ExprNode>(():ExprNode => {
+        const expr = new ExprNode()
+        expr.load(buffer)
+        return expr
+      })
+    } else if (this.tag === 0x06) {
+      this.tableIdx = buffer.readIndex()
+      this.expr = new ExprNode()
+      this.expr.load(buffer)
+      this.refType = buffer.readByte() as RefType
+      this.exprs = buffer.readVec<ExprNode>(():ExprNode => {
+        const expr = new ExprNode()
+        expr.load(buffer)
+        return expr
+      })
+    } else if (this.tag === 0x07) {
+      this.refType = buffer.readByte() as RefType
+      this.exprs = buffer.readVec<ExprNode>(():ExprNode => {
+        const expr = new ExprNode()
+        expr.load(buffer)
+        return expr
+      })
+    }
+  }
+
+  store(buffer:Buffer) {
+    buffer.writeByte(this.tag!)
+    if (this.tag === 0x00) {
+      this.expr!.store(buffer)
+      buffer.writeVec(this.funcIdxs!, (funcIdx:number) => {
+        buffer.writeIndex(funcIdx)
+      })
+    } else if (this.tag === 0x01) {
+      buffer.writeByte(this.kind!)
+      buffer.writeVec(this.funcIdxs!, (funcIdx:number) => {
+        buffer.writeIndex(funcIdx)
+      })
+    } else if (this.tag === 0x02) {
+      buffer.writeIndex(this.tableIdx!)
+      this.expr!.store(buffer)
+      buffer.writeByte(this.kind!)
+      buffer.writeVec(this.funcIdxs!, (funcIdx:number) => {
+        buffer.writeIndex(funcIdx)
+      })
+    } else if (this.tag === 0x03) {
+      buffer.writeByte(this.kind!)
+      buffer.writeVec(this.funcIdxs!, (funcIdx:number) => {
+        buffer.writeIndex(funcIdx)
+      })
+    } else if (this.tag === 0x04) {
+      this.expr!.store(buffer)
+      buffer.writeVec(this.exprs!, (expr:ExprNode) => {
+        expr.store(buffer)
+      })
+    } else if (this.tag === 0x05) {
+      buffer.writeByte(this.refType!)
+      buffer.writeVec(this.exprs!, (expr:ExprNode) => {
+        expr.store(buffer)
+      })
+    } else if (this.tag === 0x06) {
+      buffer.writeIndex(this.tableIdx!)
+      this.expr!.store(buffer)
+      buffer.writeByte(this.refType!)
+      buffer.writeVec(this.exprs!, (expr:ExprNode) => {
+        expr.store(buffer)
+      })
+    } else if (this.tag === 0x07) {
+      buffer.writeByte(this.refType!)
+      buffer.writeVec(this.exprs!, (expr:ExprNode) => {
+        expr.store(buffer)
+      })
+    }
   }
 }
 
@@ -544,6 +689,43 @@ class ImportDescNode {
     } else {
       throw new Error(`invalid import desc:${this.tag}`)
     }
+  }
+}
+
+class TableNode {
+  type?:TableTypeNode
+
+  load(buffer:Buffer) {
+    this.type = new TableTypeNode()
+    this.type.load(buffer)
+  }
+
+  store(buffer:Buffer) {
+    if (this.type === undefined) {
+      throw new Error("invalid table")
+    }
+
+    this.type.store(buffer)
+  }
+}
+
+class TableTypeNode {
+  refType?:number
+  limits?:LimitsNode
+
+  load(buffer:Buffer) {
+    this.limits = new LimitsNode()
+    this.refType = buffer.readByte()
+    this.limits.load(buffer)
+  }
+
+  store(buffer:Buffer) {
+    if (this.refType === undefined || this.limits === undefined) {
+      throw new Error("invalid tableType")
+    }
+
+    buffer.writeByte(this.refType)
+    this.limits.store(buffer)
   }
 }
 
@@ -737,6 +919,7 @@ export class InstrNode {
       [Op.Br]: BrInstrNode,
       [Op.BrIf]: BrIfInstrNode,
       [Op.Call]: CallInstrNode,
+      [Op.CallIndirect]: CallIndirectInstrNode,
       [Op.GlobalGet]: GlobalGetInstrNode,
       [Op.GlobalSet]: GlobalSetInstrNode,
       [Op.I32Load]: I32LoadInstrNode,
@@ -877,7 +1060,7 @@ export class CallInstrNode extends InstrNode {
   funcIdx!: FuncIdx
 
   load(buffer:Buffer) {
-    this.funcIdx = buffer.readU32()
+    this.funcIdx = buffer.readIndex()
   }
 
   store(buffer:Buffer) {
@@ -886,7 +1069,27 @@ export class CallInstrNode extends InstrNode {
     }
 
     super.store(buffer)
-    buffer.writeU32(this.funcIdx)
+    buffer.writeIndex(this.funcIdx)
+  }
+}
+
+export class CallIndirectInstrNode extends InstrNode {
+  typeIdx!: TypeIdx
+  tableIdx!: TableIdx
+
+  load(buffer:Buffer) {
+    this.typeIdx = buffer.readIndex()
+    this.tableIdx = buffer.readIndex()
+  }
+
+  store(buffer:Buffer) {
+    if (this.typeIdx === undefined || this.tableIdx === undefined) {
+      throw new Error("invalid call_indirect")
+    }
+
+    super.store(buffer)
+    buffer.writeIndex(this.typeIdx)
+    buffer.writeIndex(this.tableIdx)
   }
 }
 
@@ -1148,6 +1351,7 @@ type RefType = FuncRef | ExternRef
 export type ValType = NumType | RefType
 type S33 = number
 type BlockType = 0x40 | ValType | S33
+type ElementKind = 0x00
 
 const Op = {
   Block: 0x02,
@@ -1157,6 +1361,7 @@ const Op = {
   Br: 0x0c,
   BrIf: 0x0d,
   Call: 0x10,
+  CallIndirect: 0x11,
   LocalGet: 0x20,
   LocalSet: 0x21,
   LocalTee: 0x22,

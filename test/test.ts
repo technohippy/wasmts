@@ -80,6 +80,12 @@ Deno.test("load data.wasm", async () => {
   assertEquals(2, mod.sections.length)
 })
 
+Deno.test("load table.wasm", async () => {
+  const [mod] = await loadModule("./test/data/wasm/table.wasm")
+  assert(true, "no error")
+  assertEquals(6, mod.sections.length)
+})
+
 // store
 
 Deno.test("store module.wasm", async () => {
@@ -154,6 +160,13 @@ Deno.test("store memory.wasm", async () => {
 
 Deno.test("store data.wasm", async () => {
   const [mod, inBuffer] = await loadModule("./test/data/wasm/data.wasm")
+  const outBuffer = new Buffer({buffer:new ArrayBuffer(1024)})
+  mod.store(outBuffer)
+  assertEquals(inBuffer.toString(), outBuffer.toString())
+})
+
+Deno.test("store table.wasm", async () => {
+  const [mod, inBuffer] = await loadModule("./test/data/wasm/table.wasm")
   const outBuffer = new Buffer({buffer:new ArrayBuffer(1024)})
   mod.store(outBuffer)
   assertEquals(inBuffer.toString(), outBuffer.toString())
