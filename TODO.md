@@ -4,10 +4,10 @@
   - [x] 関数
   - [x] Global
   - [x] Memory
-  - [ ] Table
-- [ ] セクション
+  - [x] Table
+- [x] セクション
   - [x] Start
-  - [ ] Element
+  - [x] Element
   - [x] Data
   - [ ] DataCount
 - [ ] データ型追加
@@ -15,6 +15,7 @@
   - [ ] f32
   - [ ] f64
 - [ ] 未対応命令の追加
+  - [ ] br_table
 - [ ] labelの扱いを仕様に合わせる
 - [ ] wasm構築用のメソッドを追加
 - [ ] cmdをもう少しちゃんとする
