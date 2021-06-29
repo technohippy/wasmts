@@ -350,3 +350,11 @@ Deno.test("invoke importtable.wasm", async () => {
   assertEquals(11, inst.exports.call(0, 10))
   assertEquals(22, inst.exports.call(1, 20))
 })
+
+Deno.test("invoke br_table.wasm", async () => {
+  const [mod] = await loadModule("./test/data/wasm/br_table.wasm")
+  const inst = mod.instantiate()
+  assertEquals(10, inst.exports.switch(0))
+  assertEquals(11, inst.exports.switch(1))
+  assertEquals(12, inst.exports.switch(2))
+})

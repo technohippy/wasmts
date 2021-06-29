@@ -1,5 +1,5 @@
 (module
-  (func (export "table_if") (param $param i32) (result i32)
+  (func (export "switch") (param $param i32) (result i32)
     (i32.const 0)
     (block $switch
       (block $case0

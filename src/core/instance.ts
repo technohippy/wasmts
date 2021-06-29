@@ -1,11 +1,11 @@
 import { 
   ModuleNode, FuncTypeNode, CodeNode, InstrNode, NopInstrNode, 
   BlockInstrNode, LoopInstrNode, IfInstrNode, BrInstrNode, 
-  BrIfInstrNode, CallInstrNode, CallIndirectInstrNode, GlobalGetInstrNode, 
-  GlobalSetInstrNode, I32LoadInstrNode, I32StoreInstrNode, I32ConstInstrNode, 
-  I32EqzInstrNode, I32LtSInstrNode, I32GeSInstrNode, I32GeUInstrNode,
-  I32AddInstrNode, I32RemSInstrNode, LocalGetInstrNode, LocalSetInstrNode, 
-  LocalTeeInstrNode, GlobalTypeNode, ExprNode, ValType,
+  BrIfInstrNode, BrTableInstrNode, CallInstrNode, CallIndirectInstrNode, 
+  GlobalGetInstrNode, GlobalSetInstrNode, I32LoadInstrNode, I32StoreInstrNode, 
+  I32ConstInstrNode, I32EqzInstrNode, I32LtSInstrNode, I32GeSInstrNode, 
+  I32GeUInstrNode, I32AddInstrNode, I32RemSInstrNode, LocalGetInstrNode, 
+  LocalSetInstrNode, LocalTeeInstrNode, GlobalTypeNode, ExprNode, ValType,
 } from "./node.ts"
 import { Buffer, StackBuffer, Memory } from "./buffer.ts"
 
@@ -242,6 +242,8 @@ class Instruction {
       return new BrInstruction(node, parent)
     } else if (node instanceof BrIfInstrNode) {
       return new BrIfInstruction(node, parent)
+    } else if (node instanceof BrTableInstrNode) {
+      return new BrTableInstruction(node, parent)
     } else if (node instanceof CallInstrNode) {
       return new CallInstruction(node, parent)
     } else if (node instanceof CallIndirectInstrNode) {
@@ -426,6 +428,36 @@ class BrIfInstruction extends BrInstruction {
     }
 
     return super.invoke(context)
+  }
+}
+
+class BrTableInstruction extends Instruction {
+  #labelIdxs:number[] = []
+
+  constructor(node:BrTableInstrNode, parent?:Instruction) {
+    super(parent)
+    this.#labelIdxs = [...node.labelIdxs]
+    this.#labelIdxs.push(node.labelIdx)
+  }
+
+  invoke(context:Context):Instruction | undefined {
+    if (context.debug) console.warn("invoke br_table")
+
+    const cond = context.stack.readI32()
+    const labelIdx = this.#labelIdxs[cond]
+
+    let label = 0
+    let parent = this.parent
+    while (parent) {
+      if (parent instanceof IfInstruction || parent instanceof BlockInstruction || parent instanceof LoopInstruction) {
+        if (label === labelIdx) {
+          return parent.branchIn()
+        }
+        label++
+      }
+      parent = parent.parent
+    }
+    throw new Error(`branch error: ${labelIdx} ${label}`)
   }
 }
 
