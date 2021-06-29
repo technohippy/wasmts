@@ -2067,4 +2067,11 @@ class Context {
 }
 export { ModuleNode as WasmModule };
 export { Buffer as WasmBuffer };
+function instantiate1(file, importObject2) {
+    const buffer2 = new Buffer(file);
+    const mod = new ModuleNode();
+    mod.load(buffer2);
+    return mod.instantiate(importObject2);
+}
+export { instantiate1 as instantiate };
 

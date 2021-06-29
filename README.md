@@ -14,13 +14,7 @@ exit using ctrl+d or close()
 undefined
 > const code = await Deno.readFile("./test/data/wasm/gcd.wasm")
 undefined
-> const buffer = new Wasmts.WasmBuffer(code)
-undefined
-> const mod = new Wasmts.WasmModule()
-undefined
-> mod.load(buffer)
-undefined
-> const instance = mod.instantiate()
+> const instance = Wasmts.instantiate(code)
 undefined
 > instance.exports.gcd(42, 12)
 6
