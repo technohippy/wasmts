@@ -15,8 +15,9 @@
   - [ ] f32
   - [ ] f64
 - [ ] 未対応命令の追加
-  - [ ] br_table
-  - [ ] table.??
+  - [x] br_table
+  - [ ] table.get, table.set, table.init, ...
+  - [ ] return
 - [ ] tableのexport
 - [ ] 細かいところをいろいろ仕様に合わせる
   - [ ] labelの扱い
