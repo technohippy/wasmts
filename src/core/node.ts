@@ -919,6 +919,7 @@ export class InstrNode {
       [Op.If]: IfInstrNode,
       [Op.Br]: BrInstrNode,
       [Op.BrIf]: BrIfInstrNode,
+      [Op.BrTable]: BrTableInstrNode,
       [Op.Call]: CallInstrNode,
       [Op.CallIndirect]: CallIndirectInstrNode,
       [Op.GlobalGet]: GlobalGetInstrNode,
@@ -1044,7 +1045,7 @@ export class BrIfInstrNode extends InstrNode {
   labelIdx!: LabelIdx
 
   load(buffer:Buffer) {
-    this.labelIdx = buffer.readU32()
+    this.labelIdx = buffer.readIndex()
   }
 
   store(buffer:Buffer) {
@@ -1053,7 +1054,31 @@ export class BrIfInstrNode extends InstrNode {
     }
 
     super.store(buffer)
-    buffer.writeU32(this.labelIdx)
+    buffer.writeIndex(this.labelIdx)
+  }
+}
+
+export class BrTableInstrNode extends InstrNode {
+  labelIdxs: LabelIdx[] = []
+  labelIdx!: LabelIdx
+
+  load(buffer:Buffer) {
+    this.labelIdxs = buffer.readVec<LabelIdx>(():LabelIdx => {
+      return buffer.readIndex()
+    })
+    this.labelIdx = buffer.readIndex()
+  }
+
+  store(buffer:Buffer) {
+    if (this.labelIdx === undefined) {
+      throw new Error("invalid br_table")
+    }
+
+    super.store(buffer)
+    buffer.writeVec<LabelIdx>(this.labelIdxs, (l:LabelIdx) => {
+      buffer.writeIndex(l)
+    })
+    buffer.writeIndex(this.labelIdx)
   }
 }
 
@@ -1361,6 +1386,7 @@ const Op = {
   Else: 0x05,
   Br: 0x0c,
   BrIf: 0x0d,
+  BrTable: 0x0e,
   Call: 0x10,
   CallIndirect: 0x11,
   LocalGet: 0x20,

@@ -17,6 +17,7 @@
 - [ ] 未対応命令の追加
   - [ ] br_table
   - [ ] table.??
+  - [ ] return
 - [ ] tableのexport
 - [ ] 細かいところをいろいろ仕様に合わせる
   - [ ] labelの扱い
