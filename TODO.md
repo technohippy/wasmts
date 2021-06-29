@@ -16,10 +16,14 @@
   - [ ] f64
 - [ ] 未対応命令の追加
   - [ ] br_table
+  - [ ] table.??
+- [ ] tableのexport
 - [ ] 細かいところをいろいろ仕様に合わせる
   - [ ] labelの扱い
+  - [ ] frame
 - [ ] wasm構築用のメソッドを追加
 - [ ] cmdをもう少しちゃんとする
 - [ ] WASI対応
 - [ ] instance.tsのimportをどうにかする
 - [ ] バッファの長さが1024で固定されているのをどうにかする
+- [ ] the art of webassemblyのサンプルコードを動作させてみる
