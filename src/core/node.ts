@@ -920,6 +920,7 @@ export class InstrNode {
       [Op.Br]: BrInstrNode,
       [Op.BrIf]: BrIfInstrNode,
       [Op.BrTable]: BrTableInstrNode,
+      [Op.Return]: ReturnInstrNode,
       [Op.Call]: CallInstrNode,
       [Op.CallIndirect]: CallIndirectInstrNode,
       [Op.GlobalGet]: GlobalGetInstrNode,
@@ -1080,6 +1081,9 @@ export class BrTableInstrNode extends InstrNode {
     })
     buffer.writeIndex(this.labelIdx)
   }
+}
+
+export class ReturnInstrNode extends InstrNode {
 }
 
 export class CallInstrNode extends InstrNode {
@@ -1387,6 +1391,7 @@ const Op = {
   Br: 0x0c,
   BrIf: 0x0d,
   BrTable: 0x0e,
+  Return: 0x0f,
   Call: 0x10,
   CallIndirect: 0x11,
   LocalGet: 0x20,

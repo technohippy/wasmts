@@ -92,6 +92,12 @@ Deno.test("load br_table.wasm", async () => {
   assertEquals(4, mod.sections.length)
 })
 
+Deno.test("load return.wasm", async () => {
+  const [mod] = await loadModule("./test/data/wasm/return.wasm")
+  assert(true, "no error")
+  assertEquals(4, mod.sections.length)
+})
+
 // store
 
 Deno.test("store module.wasm", async () => {
@@ -180,6 +186,13 @@ Deno.test("store table.wasm", async () => {
 
 Deno.test("store br_table.wasm", async () => {
   const [mod, inBuffer] = await loadModule("./test/data/wasm/br_table.wasm")
+  const outBuffer = new Buffer({buffer:new ArrayBuffer(1024)})
+  mod.store(outBuffer)
+  assertEquals(inBuffer.toString(), outBuffer.toString())
+})
+
+Deno.test("store return.wasm", async () => {
+  const [mod, inBuffer] = await loadModule("./test/data/wasm/return.wasm")
   const outBuffer = new Buffer({buffer:new ArrayBuffer(1024)})
   mod.store(outBuffer)
   assertEquals(inBuffer.toString(), outBuffer.toString())
@@ -353,6 +366,14 @@ Deno.test("invoke importtable.wasm", async () => {
 
 Deno.test("invoke br_table.wasm", async () => {
   const [mod] = await loadModule("./test/data/wasm/br_table.wasm")
+  const inst = mod.instantiate()
+  assertEquals(10, inst.exports.switch(0))
+  assertEquals(11, inst.exports.switch(1))
+  assertEquals(12, inst.exports.switch(2))
+})
+
+Deno.test("invoke return.wasm", async () => {
+  const [mod] = await loadModule("./test/data/wasm/return.wasm")
   const inst = mod.instantiate()
   assertEquals(10, inst.exports.switch(0))
   assertEquals(11, inst.exports.switch(1))
