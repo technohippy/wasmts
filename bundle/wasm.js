@@ -1138,6 +1138,7 @@ class InstrNode {
             [Op.If]: IfInstrNode,
             [Op.Br]: BrInstrNode,
             [Op.BrIf]: BrIfInstrNode,
+            [Op.BrTable]: BrTableInstrNode,
             [Op.Call]: CallInstrNode,
             [Op.CallIndirect]: CallIndirectInstrNode,
             [Op.GlobalGet]: GlobalGetInstrNode,
@@ -1232,14 +1233,33 @@ class BrInstrNode extends InstrNode {
 }
 class BrIfInstrNode extends InstrNode {
     load(buffer) {
-        this.labelIdx = buffer.readU32();
+        this.labelIdx = buffer.readIndex();
     }
     store(buffer) {
         if (this.labelIdx === undefined) {
             throw new Error("invalid br_if");
         }
         super.store(buffer);
-        buffer.writeU32(this.labelIdx);
+        buffer.writeIndex(this.labelIdx);
+    }
+}
+class BrTableInstrNode extends InstrNode {
+    labelIdxs = [];
+    load(buffer) {
+        this.labelIdxs = buffer.readVec(()=>{
+            return buffer.readIndex();
+        });
+        this.labelIdx = buffer.readIndex();
+    }
+    store(buffer) {
+        if (this.labelIdx === undefined) {
+            throw new Error("invalid br_table");
+        }
+        super.store(buffer);
+        buffer.writeVec(this.labelIdxs, (l)=>{
+            buffer.writeIndex(l);
+        });
+        buffer.writeIndex(this.labelIdx);
     }
 }
 class CallInstrNode extends InstrNode {
@@ -1453,6 +1473,7 @@ const Op = {
     Else: 5,
     Br: 12,
     BrIf: 13,
+    BrTable: 14,
     Call: 16,
     CallIndirect: 17,
     LocalGet: 32,
@@ -1549,6 +1570,8 @@ class Instruction {
             return new BrInstruction(node, parent);
         } else if (node instanceof BrIfInstrNode) {
             return new BrIfInstruction(node, parent);
+        } else if (node instanceof BrTableInstrNode) {
+            return new BrTableInstruction(node, parent);
         } else if (node instanceof CallInstrNode) {
             return new CallInstruction(node, parent);
         } else if (node instanceof CallIndirectInstrNode) {
@@ -1705,11 +1728,38 @@ class BrIfInstruction extends BrInstruction {
         return super.invoke(context);
     }
 }
-class CallInstruction extends Instruction {
-    #funcIdx;
+class BrTableInstruction extends Instruction {
+    #labelIdxs=[];
     constructor(node6, parent9){
         super(parent9);
-        this.#funcIdx = node6.funcIdx;
+        this.#labelIdxs = [
+            ...node6.labelIdxs
+        ];
+        this.#labelIdxs.push(node6.labelIdx);
+    }
+    invoke(context) {
+        if (context.debug) console.warn("invoke br_table");
+        const cond = context.stack.readI32();
+        const labelIdx = this.#labelIdxs[cond];
+        let label = 0;
+        let parent10 = this.parent;
+        while(parent10){
+            if (parent10 instanceof IfInstruction || parent10 instanceof BlockInstruction || parent10 instanceof LoopInstruction) {
+                if (label === labelIdx) {
+                    return parent10.branchIn();
+                }
+                label++;
+            }
+            parent10 = parent10.parent;
+        }
+        throw new Error(`branch error: ${labelIdx} ${label}`);
+    }
+}
+class CallInstruction extends Instruction {
+    #funcIdx;
+    constructor(node7, parent10){
+        super(parent10);
+        this.#funcIdx = node7.funcIdx;
     }
     invoke(context) {
         if (context.debug) console.warn("invoke call");
@@ -1724,10 +1774,10 @@ class CallInstruction extends Instruction {
 class CallIndirectInstruction extends Instruction {
     #typeIdx;
     #tableIdx;
-    constructor(node7, parent10){
-        super(parent10);
-        this.#typeIdx = node7.typeIdx;
-        this.#tableIdx = node7.tableIdx;
+    constructor(node8, parent11){
+        super(parent11);
+        this.#typeIdx = node8.typeIdx;
+        this.#tableIdx = node8.tableIdx;
     }
     invoke(context) {
         if (context.debug) console.warn("invoke call_indirect");
@@ -1748,10 +1798,10 @@ class CallIndirectInstruction extends Instruction {
 class I32LoadInstruction extends Instruction {
     #offset;
     #align;
-    constructor(node8, parent11){
-        super(parent11);
-        this.#offset = node8.memarg.offset;
-        this.#align = node8.memarg.align;
+    constructor(node9, parent12){
+        super(parent12);
+        this.#offset = node9.memarg.offset;
+        this.#align = node9.memarg.align;
     }
     invoke(context) {
         if (context.debug) console.warn("invoke i32.load");
@@ -1763,10 +1813,10 @@ class I32LoadInstruction extends Instruction {
 class I32StoreInstruction extends Instruction {
     #offset;
     #align;
-    constructor(node9, parent12){
-        super(parent12);
-        this.#offset = node9.memarg.offset;
-        this.#align = node9.memarg.align;
+    constructor(node10, parent13){
+        super(parent13);
+        this.#offset = node10.memarg.offset;
+        this.#align = node10.memarg.align;
     }
     invoke(context) {
         if (context.debug) console.warn("invoke i32.load");
@@ -1777,9 +1827,9 @@ class I32StoreInstruction extends Instruction {
 }
 class I32ConstInstruction extends Instruction {
     #num;
-    constructor(node10, parent13){
-        super(parent13);
-        this.#num = node10.num;
+    constructor(node11, parent14){
+        super(parent14);
+        this.#num = node11.num;
     }
     invoke(context) {
         if (context.debug) console.warn("invoke i32.const");
@@ -1788,8 +1838,8 @@ class I32ConstInstruction extends Instruction {
     }
 }
 class I32EqzInstruction extends Instruction {
-    constructor(node11, parent14){
-        super(parent14);
+    constructor(node12, parent15){
+        super(parent15);
     }
     invoke(context) {
         if (context.debug) console.warn("invoke i32.eqz");
@@ -1799,8 +1849,8 @@ class I32EqzInstruction extends Instruction {
     }
 }
 class I32LtSInstruction extends Instruction {
-    constructor(node12, parent15){
-        super(parent15);
+    constructor(node13, parent16){
+        super(parent16);
     }
     invoke(context) {
         if (context.debug) console.warn("invoke i32.lt_s");
@@ -1811,8 +1861,8 @@ class I32LtSInstruction extends Instruction {
     }
 }
 class I32GeSInstruction extends Instruction {
-    constructor(node13, parent16){
-        super(parent16);
+    constructor(node14, parent17){
+        super(parent17);
     }
     invoke(context) {
         if (context.debug) console.warn("invoke i32.ge_s");
@@ -1823,8 +1873,8 @@ class I32GeSInstruction extends Instruction {
     }
 }
 class I32GeUInstruction extends Instruction {
-    constructor(node14, parent17){
-        super(parent17);
+    constructor(node15, parent18){
+        super(parent18);
     }
     invoke(context) {
         if (context.debug) console.warn("invoke i32.ge_u");
@@ -1835,8 +1885,8 @@ class I32GeUInstruction extends Instruction {
     }
 }
 class I32AddInstruction extends Instruction {
-    constructor(node15, parent18){
-        super(parent18);
+    constructor(node16, parent19){
+        super(parent19);
     }
     invoke(context) {
         if (context.debug) console.warn("invoke i32.add");
@@ -1847,8 +1897,8 @@ class I32AddInstruction extends Instruction {
     }
 }
 class I32RemSInstruction extends Instruction {
-    constructor(node16, parent19){
-        super(parent19);
+    constructor(node17, parent20){
+        super(parent20);
     }
     invoke(context) {
         if (context.debug) console.warn("invoke i32.rem_s");
@@ -1860,9 +1910,9 @@ class I32RemSInstruction extends Instruction {
 }
 class LocalGetInstruction extends Instruction {
     #localIdx;
-    constructor(node17, parent20){
-        super(parent20);
-        this.#localIdx = node17.localIdx;
+    constructor(node18, parent21){
+        super(parent21);
+        this.#localIdx = node18.localIdx;
     }
     invoke(context) {
         if (context.debug) console.warn("invoke local.get");
@@ -1873,9 +1923,9 @@ class LocalGetInstruction extends Instruction {
 }
 class LocalSetInstruction extends Instruction {
     #localIdx;
-    constructor(node18, parent21){
-        super(parent21);
-        this.#localIdx = node18.localIdx;
+    constructor(node19, parent22){
+        super(parent22);
+        this.#localIdx = node19.localIdx;
     }
     invoke(context) {
         if (context.debug) console.warn("invoke local.set");
@@ -1886,9 +1936,9 @@ class LocalSetInstruction extends Instruction {
 }
 class LocalTeeInstruction extends Instruction {
     #localIdx;
-    constructor(node19, parent22){
-        super(parent22);
-        this.#localIdx = node19.localIdx;
+    constructor(node20, parent23){
+        super(parent23);
+        this.#localIdx = node20.localIdx;
     }
     invoke(context) {
         if (context.debug) console.warn("invoke local.tee");
@@ -1902,9 +1952,9 @@ class LocalTeeInstruction extends Instruction {
 }
 class GlobalGetInstruction extends Instruction {
     #globalIdx;
-    constructor(node20, parent23){
-        super(parent23);
-        this.#globalIdx = node20.globalIdx;
+    constructor(node21, parent24){
+        super(parent24);
+        this.#globalIdx = node21.globalIdx;
     }
     invoke(context) {
         if (context.debug) console.warn("invoke global.get");
@@ -1915,9 +1965,9 @@ class GlobalGetInstruction extends Instruction {
 }
 class GlobalSetInstruction extends Instruction {
     #globalIdx;
-    constructor(node21, parent24){
-        super(parent24);
-        this.#globalIdx = node21.globalIdx;
+    constructor(node22, parent25){
+        super(parent25);
+        this.#globalIdx = node22.globalIdx;
     }
     invoke(context) {
         if (context.debug) console.warn("invoke global.set");

@@ -17,7 +17,7 @@
 - [ ] 未対応命令の追加
   - [x] br_table
   - [ ] table.get, table.set, table.init, ...
-  - [ ] return, unreachable, nop
+  - [ ] return
 - [ ] tableのexport
 - [ ] 細かいところをいろいろ仕様に合わせる
   - [ ] labelの扱い
