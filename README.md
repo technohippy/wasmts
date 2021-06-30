@@ -32,6 +32,8 @@ $ deno test --allow-read test/
 
 ## Instructions
 
+### Control Instructions
+
 | instruction         | status |
 | ------------------- | ------ |
 | nop                 | o      |
@@ -45,6 +47,83 @@ $ deno test --allow-read test/
 | return              | o      |
 | call                | o      |
 | call_indirect       | o      |
+
+### Reference Instructions
+
+| instruction         | status |
+| ------------------- | ------ |
+| ref.null            |        |
+| ref.is_null         |        |
+| ref.func            |        |
+
+### Parametric Instructions
+
+| instruction         | status |
+| ------------------- | ------ |
+| drop                |        |
+| select              |        |
+
+### Variable Instructions
+
+| instruction         | status |
+| ------------------- | ------ |
+| local.get           | o      |
+| local.set           | o      |
+| local.tee           | o      |
+| global.get          | o      |
+| global.set          | o      |
+
+### Table Instructions
+
+| instruction         | status |
+| ------------------- | ------ |
+| table.get           |        |
+| table.set           |        |
+| table.size          |        |
+| table.grow          |        |
+| table.fill          |        |
+| table.copy          |        |
+| table.init          |        |
+| elem.drop           |        |
+
+### Memory Instructions
+
+| instruction         | status |
+| ------------------- | ------ |
+| i32.load            | o      |
+| f32.load            |        |
+| i32.store           | o      |
+| f32.store           |        |
+| i32.load8_s         |        |
+| i32.load8_u         |        |
+| i32.load16_s        |        |
+| i32.load16_u        |        |
+| i64.load            |        |
+| f64.load            |        |
+| i64.store           |        |
+| f64.store           |        |
+| i64.load8_s         |        |
+| i64.load8_u         |        |
+| i64.load16_s        |        |
+| i64.load16_u        |        |
+| i64.load32_s        |        |
+| i64.load32_u        |        |
+| i32.store8          |        |
+| i32.store16         |        |
+| i64.store8          |        |
+| i64.store16         |        |
+| i64.store32         |        |
+| memory.size         |        |
+| memory.grow         |        |
+| memory.fill         |        |
+| memory.copy         |        |
+| memory.init         |        |
+| data.drop           |        |
+
+### Numeric Instructions
+
+| instruction         | status |
+| ------------------- | ------ |
 | i32.const           | o      |
 | f32.const           |        |
 | i64.const           |        |
@@ -147,53 +226,6 @@ $ deno test --allow-read test/
 | f64.gt              |        |
 | f64.le              |        |
 | f64.ge              |        |
-| ref.null            |        |
-| ref.is_null         |        |
-| ref.func            |        |
-| drop                |        |
-| select              |        |
-| local.get           | o      |
-| local.set           | o      |
-| local.tee           | o      |
-| global.get          | o      |
-| global.set          | o      |
-| table.get           |        |
-| table.set           |        |
-| table.size          |        |
-| table.grow          |        |
-| table.fill          |        |
-| table.copy          |        |
-| table.init          |        |
-| elem.drop           |        |
-| i32.load            | o      |
-| f32.load            |        |
-| i32.store           | o      |
-| f32.store           |        |
-| i32.load8_s         |        |
-| i32.load8_u         |        |
-| i32.load16_s        |        |
-| i32.load16_u        |        |
-| i64.load            |        |
-| f64.load            |        |
-| i64.store           |        |
-| f64.store           |        |
-| i64.load8_s         |        |
-| i64.load8_u         |        |
-| i64.load16_s        |        |
-| i64.load16_u        |        |
-| i64.load32_s        |        |
-| i64.load32_u        |        |
-| i32.store8          |        |
-| i32.store16         |        |
-| i64.store8          |        |
-| i64.store16         |        |
-| i64.store32         |        |
-| memory.size         |        |
-| memory.grow         |        |
-| memory.fill         |        |
-| memory.copy         |        |
-| memory.init         |        |
-| data.drop           |        |
 | i32.extend8_s       |        |
 | i32.extend16_s      |        |
 | i64.extend8_s       |        |
