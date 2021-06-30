@@ -1,7 +1,7 @@
 import { 
   ModuleNode, FuncTypeNode, CodeNode, InstrNode, NopInstrNode, 
   BlockInstrNode, LoopInstrNode, IfInstrNode, BrInstrNode, 
-  BrIfInstrNode, BrTableInstrNode, CallInstrNode, CallIndirectInstrNode, 
+  BrIfInstrNode, BrTableInstrNode, ReturnInstrNode, CallInstrNode, CallIndirectInstrNode, 
   GlobalGetInstrNode, GlobalSetInstrNode, I32LoadInstrNode, I32StoreInstrNode, 
   I32ConstInstrNode, I32EqzInstrNode, I32LtSInstrNode, I32GeSInstrNode, 
   I32GeUInstrNode, I32AddInstrNode, I32RemSInstrNode, LocalGetInstrNode, 
@@ -244,6 +244,8 @@ class Instruction {
       return new BrIfInstruction(node, parent)
     } else if (node instanceof BrTableInstrNode) {
       return new BrTableInstruction(node, parent)
+    } else if (node instanceof ReturnInstrNode) {
+      return new ReturnInstruction(node, parent)
     } else if (node instanceof CallInstrNode) {
       return new CallInstruction(node, parent)
     } else if (node instanceof CallIndirectInstrNode) {
@@ -458,6 +460,17 @@ class BrTableInstruction extends Instruction {
       parent = parent.parent
     }
     throw new Error(`branch error: ${labelIdx} ${label}`)
+  }
+}
+
+class ReturnInstruction extends Instruction {
+  constructor(node:ReturnInstrNode, parent?:Instruction) {
+    super(parent)
+  }
+
+  invoke(context:Context):Instruction | undefined {
+    if (context.debug) console.warn("invoke return")
+    return undefined
   }
 }
 
