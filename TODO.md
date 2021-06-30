@@ -18,6 +18,7 @@
   - [x] br_table
   - [ ] table.get, table.set, table.init, ...
   - [x] return
+  - [x] unreachable, nop
 - [ ] tableのexport
 - [ ] 細かいところをいろいろ仕様に合わせる
   - [ ] labelの扱い

@@ -914,6 +914,8 @@ export class InstrNode {
     const klass = {
       [Op.End]: NopInstrNode,
       [Op.Else]: NopInstrNode,
+      [Op.Unreachable]: UnreachableInstrNode,
+      [Op.Nop]: NopInstrNode,
       [Op.Block]: BlockInstrNode,
       [Op.Loop]: LoopInstrNode,
       [Op.If]: IfInstrNode,
@@ -1121,6 +1123,9 @@ export class CallIndirectInstrNode extends InstrNode {
     buffer.writeIndex(this.typeIdx)
     buffer.writeIndex(this.tableIdx)
   }
+}
+
+export class UnreachableInstrNode extends InstrNode {
 }
 
 export class NopInstrNode extends InstrNode {
@@ -1384,6 +1389,8 @@ type BlockType = 0x40 | ValType | S33
 type ElementKind = 0x00
 
 const Op = {
+  Unreachable: 0x00,
+  Nop: 0x01,
   Block: 0x02,
   Loop: 0x03,
   If: 0x04,
