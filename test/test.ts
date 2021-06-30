@@ -98,6 +98,18 @@ Deno.test("load return.wasm", async () => {
   assertEquals(4, mod.sections.length)
 })
 
+Deno.test("load unreachable.wasm", async () => {
+  const [mod] = await loadModule("./test/data/wasm/unreachable.wasm")
+  assert(true, "no error")
+  assertEquals(4, mod.sections.length)
+})
+
+Deno.test("load nop.wasm", async () => {
+  const [mod] = await loadModule("./test/data/wasm/nop.wasm")
+  assert(true, "no error")
+  assertEquals(4, mod.sections.length)
+})
+
 // store
 
 Deno.test("store module.wasm", async () => {
@@ -193,6 +205,20 @@ Deno.test("store br_table.wasm", async () => {
 
 Deno.test("store return.wasm", async () => {
   const [mod, inBuffer] = await loadModule("./test/data/wasm/return.wasm")
+  const outBuffer = new Buffer({buffer:new ArrayBuffer(1024)})
+  mod.store(outBuffer)
+  assertEquals(inBuffer.toString(), outBuffer.toString())
+})
+
+Deno.test("store unreachable.wasm", async () => {
+  const [mod, inBuffer] = await loadModule("./test/data/wasm/unreachable.wasm")
+  const outBuffer = new Buffer({buffer:new ArrayBuffer(1024)})
+  mod.store(outBuffer)
+  assertEquals(inBuffer.toString(), outBuffer.toString())
+})
+
+Deno.test("store nop.wasm", async () => {
+  const [mod, inBuffer] = await loadModule("./test/data/wasm/nop.wasm")
   const outBuffer = new Buffer({buffer:new ArrayBuffer(1024)})
   mod.store(outBuffer)
   assertEquals(inBuffer.toString(), outBuffer.toString())
@@ -378,4 +404,22 @@ Deno.test("invoke return.wasm", async () => {
   assertEquals(10, inst.exports.switch(0))
   assertEquals(11, inst.exports.switch(1))
   assertEquals(12, inst.exports.switch(2))
+})
+
+Deno.test("invoke unreachable.wasm", async () => {
+  const [mod] = await loadModule("./test/data/wasm/unreachable.wasm")
+  const inst = mod.instantiate()
+  try {
+    inst.exports.unreachable()
+    assert(false, "error should happen")
+  } catch(_) {
+    assert(true, "expected error")
+  }
+})
+
+Deno.test("invoke nop.wasm", async () => {
+  const [mod] = await loadModule("./test/data/wasm/nop.wasm")
+  const inst = mod.instantiate()
+  inst.exports.nop()
+  assert(true, "no error")
 })

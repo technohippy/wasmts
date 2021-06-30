@@ -1,5 +1,5 @@
 import { 
-  ModuleNode, FuncTypeNode, CodeNode, InstrNode, NopInstrNode, 
+  ModuleNode, FuncTypeNode, CodeNode, InstrNode, UnreachableInstrNode, NopInstrNode, 
   BlockInstrNode, LoopInstrNode, IfInstrNode, BrInstrNode, 
   BrIfInstrNode, BrTableInstrNode, ReturnInstrNode, CallInstrNode, CallIndirectInstrNode, 
   GlobalGetInstrNode, GlobalSetInstrNode, I32LoadInstrNode, I32StoreInstrNode, 
@@ -230,7 +230,9 @@ class Instruction {
   }
 
   static create(node:InstrNode, parent?:Instruction):Instruction {
-    if (node instanceof NopInstrNode) {
+    if (node instanceof UnreachableInstrNode) {
+      return new UnreachableInstruction(node, parent)
+    } else if (node instanceof NopInstrNode) {
       return new NopInstruction(node, parent)
     } else if (node instanceof BlockInstrNode) {
       return new BlockInstruction(node, parent)
@@ -315,6 +317,16 @@ class InstructionSeq extends Instruction {
       instr = instr.invoke(context)
     }
     return undefined
+  }
+}
+
+class UnreachableInstruction extends Instruction {
+  constructor(node:UnreachableInstrNode, parent?:Instruction) {
+    super(parent)
+  }
+
+  invoke(context:Context):Instruction | undefined {
+    throw new Error("unreachable")
   }
 }
 
