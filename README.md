@@ -6,7 +6,7 @@ This project is just for my learning purpose.
 
 ## How to Try
 
-```
+```javascript
 $ deno
 Deno 1.8.2
 exit using ctrl+d or close()
@@ -23,6 +23,8 @@ undefined
 > close()
 $
 ```
+
+(See [test/data/wasm/gcd.wat](test/data/wasm/gcd.wat))
 
 ## How to Test
 
