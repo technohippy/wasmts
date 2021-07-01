@@ -4,7 +4,9 @@ Wasm Runtime written in TypeScript.
 
 This project is just for my learning purpose.
 
-## How to Try
+## How to Use
+
+### GCD
 
 ```javascript
 $ deno
@@ -25,6 +27,28 @@ $
 ```
 
 (See [test/data/wasm/gcd.wat](test/data/wasm/gcd.wat))
+
+### importObjects
+
+```javascript
+$ deno
+Deno 1.8.2
+exit using ctrl+d or close()
+> const Wasmts = await import("./bundle/wasm.js")
+undefined
+> const code = await Deno.readFile("./test/data/wasm/import2.wasm")
+undefined
+> const instance = Wasmts.instantiate(code, {
+    env: { mul: (n, m) => n * m }
+  })
+undefined
+> instance.exports.mul(6, 7)
+42
+> close()
+$
+```
+
+(See [test/data/wasm/import2.wat](test/data/wasm/import2.wat))
 
 ## How to Test
 
