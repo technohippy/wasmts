@@ -1,0 +1,2 @@
+#!/bin/sh
+wat2wasm test/data/wasm/$1.wat -o test/data/wasm/$1.wasm  
